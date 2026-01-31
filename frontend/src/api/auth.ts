@@ -28,3 +28,17 @@ export async function refreshToken(): Promise<string> {
   localStorage.setItem('accessToken', accessToken);
   return accessToken;
 }
+
+export async function isGoogleOAuthEnabled(): Promise<boolean> {
+  try {
+    const response = await api.get<{ enabled: boolean }>('/auth/google/enabled');
+    return response.data.enabled;
+  } catch {
+    return false;
+  }
+}
+
+export function getGoogleOAuthUrl(): string {
+  // This redirects through the backend which handles the OAuth flow
+  return '/api/auth/google';
+}

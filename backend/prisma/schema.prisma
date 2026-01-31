@@ -8,18 +8,24 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      String   @default("MEMBER") // ADMIN or MEMBER
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String?  // Nullable for OAuth users
+  name          String
+  role          String   @default("MEMBER") // ADMIN or MEMBER
+  authProvider  String   @default("local") // "local", "google"
+  providerId    String?  // External provider's user ID
+  avatarUrl     String?  // Profile picture from OAuth provider
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   projects      ProjectMember[]
   comments      Comment[]
   managedFiles  ManagedFile[]
   notifications Notification[]
+  invitations   Invitation[]
+
+  @@index([authProvider, providerId])
 }
 
 model Project {
@@ -148,4 +154,19 @@ model Notification {
   createdAt    DateTime @default(now())
 
   recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+}
+
+model Invitation {
+  id          String    @id @default(uuid())
+  token       String    @unique
+  email       String
+  name        String?
+  role        String    @default("MEMBER") // ADMIN or MEMBER
+  projectIds  String?   // JSON array of project IDs to add user to
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  invitedBy   User      @relation(fields: [invitedById], references: [id], onDelete: Cascade)
 }

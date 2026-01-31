@@ -7,6 +7,7 @@ import cutRoutes from './cuts';
 import fileRoutes from './files';
 import publicRoutes from './public';
 import notificationRoutes from './notifications';
+import invitationRoutes from './invitations';
 
 const router = Router();
 
@@ -26,5 +27,6 @@ router.use('/vibes', vibeRoutes);
 router.use('/cuts', cutRoutes);
 router.use('/files', fileRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/invitations', invitationRoutes);
 
 export default router;

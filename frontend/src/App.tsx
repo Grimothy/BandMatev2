@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
+import { AcceptInvite } from './pages/AcceptInvite';
 import { Dashboard } from './pages/Dashboard';
 import { ProjectList } from './pages/projects/ProjectList';
 import { ProjectDetail } from './pages/projects/ProjectDetail';
@@ -28,6 +29,7 @@ export default function App() {
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
+            <Route path="/accept-invite" element={<AcceptInvite />} />
             <Route path="/shared/:shareToken" element={<SharedFile />} />
             
             {/* Protected routes */}
