@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/public/logo.png" alt="BandMate Logo" width="120">
+  <img width="248" height="248" alt="BandMate Logo" src="https://github.com/user-attachments/assets/6b2d886d-a530-4315-8e68-dc4671a8fe42" />
 </p>
 
 <h1 align="center">BandMate</h1>
@@ -159,6 +159,13 @@ volumes:
 **Backend:** Node.js, Express, TypeScript, Prisma (SQLite), Socket.io, JWT auth
 
 ---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
 ## License
 
