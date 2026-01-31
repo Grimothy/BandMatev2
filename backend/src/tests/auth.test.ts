@@ -74,6 +74,28 @@ describe('Auth Routes', () => {
       expect(response.status).toBe(400);
       expect(response.body.error).toBeDefined();
     });
+
+    it('should reject password login for OAuth-only user', async () => {
+      // Create an OAuth-only user (no password)
+      await prisma.user.create({
+        data: {
+          email: 'oauth@example.com',
+          name: 'OAuth User',
+          role: 'MEMBER',
+          authProvider: 'google',
+          providerId: 'google-12345',
+          // No password set - this user only uses Google OAuth
+        },
+      });
+
+      // Try to login with password
+      const response = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'oauth@example.com', password: 'anypassword' });
+      
+      expect(response.status).toBe(401);
+      expect(response.body.error).toBeDefined();
+    });
   });
 
   describe('GET /api/auth/me', () => {

@@ -1,116 +1,164 @@
-<img width="248" height="248" alt="image" src="https://github.com/user-attachments/assets/6b2d886d-a530-4315-8e68-dc4671a8fe42" />
+<p align="center">
+  <img width="248" height="248" alt="BandMate Logo" src="https://github.com/user-attachments/assets/6b2d886d-a530-4315-8e68-dc4671a8fe42" />
+</p>
 
+<h1 align="center">BandMate</h1>
 
-# 🎸 BandMate - Your Band's New Digital Studio
-Hey there, music makers! Welcome to BandMate  - the collaboration platform that's about to make your band's creative workflow smoother than a jazz bassline. 🎵
+<p align="center">
+  A music collaboration platform for bands to create and share music together.
+</p>
 
-## ✨ What's Under the Hood?
+---
 
-### 🎯 Smart Project Organization
+## Features
 
-Projects are your band's creative spaces - think of them as your digital rehearsal studios
-Vibes live inside projects - these are your song ideas, themes, or experimental jam sessions
-Cuts are the individual takes within each vibe - every version, every iteration, beautifully organized
-Drag-and-drop reordering because life's too short for manual sorting
+- **Real-time Collaboration** - Work on projects simultaneously with your bandmates via WebSockets
+- **Audio Waveform Visualization** - See your tracks with interactive waveforms (Wavesurfer.js)
+- **Project Organization** - Organize songs into "Vibes" and manage multiple "Cuts" per song
+- **File Management** - Upload and manage audio files, stems, and project images
+- **Timestamped Comments** - Leave feedback at specific points in a track
+- **User Invitations** - Invite band members via email with customizable permissions
+- **Notifications** - Stay updated on project activity
+- **Google OAuth** - Optional single sign-on support
 
-###🎧 Audio Management That Actually Works
+---
 
-Upload audio files and stems with ease (supports MP3, WAV, FLAC, OGG, and more!)
-Real-time waveform visualization using Wavesurfer.js - see your music, not just hear it
-Label your files with custom names so "final_FINAL_v3_actually_final.mp3" becomes a thing of the past
-Support for stems (upload those multi-track ZIP files up to 500MB!)
-File size limits that make sense: 100MB for regular audio, 500MB for stems
-### 👥 Real-Time Collaboration
+## Quick Start
 
-WebSocket-powered live updates - see changes as they happen, no refresh needed
-Instant notifications when bandmates upload new files or make changes
-Share files with external collaborators using secure share links
-Role-based permissions: Admins and Members with granular project access controls
+### Option 1: Docker (Recommended)
 
-### 🔐 Authentication & Security
+```bash
+docker run -d \
+  --name bandmate \
+  -p 3000:3000 \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/uploads:/app/uploads \
+  -e JWT_ACCESS_SECRET="your-secret-here" \
+  -e JWT_REFRESH_SECRET="your-refresh-secret" \
+  grimothy/bandmate:latest
+```
 
-JWT-based authentication with refresh tokens for secure, persistent sessions
-Cookie-based auth that just works™
-Admin panel for user management
-Per-project member permissions (some folks can create vibes, some can't - you decide!)
+Open http://localhost:3000 and login with `admin@bandmate.local` / `admin`
 
-### 🎨 Beautiful, Modern UI
+### Option 2: Docker Compose
 
-React 18 with TypeScript for that buttery-smooth experience
-Tailwind CSS styling that looks good and loads fast
-Radix UI components for accessible, polished interfaces
-Vite for lightning-fast development and builds
-Responsive design - works on your laptop, tablet, or phone
+```bash
+git clone https://github.com/Grimothy/BandMate.git
+cd BandMate
+docker-compose up -d
+```
 
-### 📁 File Explorer
+### Option 3: Local Development
 
-Browse all your audio files across all projects in one place
-Filter by project, vibe, or cut
-Hierarchical view showing your entire creative catalog
-Quick actions for editing, deleting, and sharing files
-💬 Comments & Feedback
+```bash
+# Backend
+cd backend
+npm install
+cp ../.env.example .env
+npm run db:push && npm run db:seed
+npm run dev
 
-Leave timestamped comments on audio files
-Collaborate asynchronously - drop feedback whenever inspiration strikes
-Never lose track of what needs fixing or what's working
+# Frontend (new terminal)
+cd frontend
+npm install
+npm run dev
+```
 
-### 🔔 Smart Notifications
+---
 
-Real-time toast notifications when stuff happens
-Notification center to review what you missed
-Links directly to the relevant content
-Automatic cleanup of old notifications (because nobody needs 6-month-old updates)
+## Configuration
 
-### 🐳 Production-Ready Deployment
+### Required Variables
 
-Docker support with multi-stage builds
-Health check endpoints
-Automatic database migrations and seeding
-Environment-based configuration
-Nginx-ready static file serving
+| Variable | Description |
+|----------|-------------|
+| `JWT_ACCESS_SECRET` | Secret for signing access tokens. Use a random string. |
+| `JWT_REFRESH_SECRET` | Secret for signing refresh tokens. Use a different random string. |
 
-## 🛠️ Technical Stack (For the Nerds 🤓)
+### Server
 
-### Frontend:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | Port the server listens on |
+| `NODE_ENV` | `development` | Set to `production` for deployments |
+| `DATABASE_URL` | `file:./data/bandmate.db` | SQLite database path |
 
-React 18 + TypeScript
-Vite (blazing fast!)
-Tailwind CSS + Radix UI
-Socket.io client
-Axios for API calls
-Backend:
+### Admin User
 
-Node.js + Express
-TypeScript throughout
-Prisma ORM (SQLite by default, scales to PostgreSQL)
-Socket.io for real-time magic
-Multer for file uploads
-JWT authentication
-Database Models:
+Initial admin credentials (used when seeding the database):
 
-Users → Projects (many-to-many with permissions)
-Projects → Vibes → Cuts → Files
-Comments, Notifications, Share Tokens
-Refresh Tokens for secure sessions
+| Variable | Default |
+|----------|---------|
+| `ADMIN_EMAIL` | `admin@bandmate.local` |
+| `ADMIN_PASSWORD` | `admin` |
 
-## 🚀 What This Means For You
-No more:
+### Reverse Proxy
 
-🚫 Confusing Dropbox folders with 47 versions of the same file
-🚫 "Did you hear the latest mix?" followed by sending the wrong link
-🚫 Lost feedback buried in text message threads
-🚫 Wondering who uploaded what and when
-Just:
+If running behind nginx, Traefik, or another reverse proxy:
 
-✅ Organized projects with clear structure
-✅ Real-time updates when your bandmates make changes
-✅ Beautiful waveforms and intuitive playback
-✅ Secure sharing with people outside your core team
-✅ A single source of truth for your band's creative work
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `APP_URL` | `http://localhost:3000` | Your public-facing URL. Used for email links and OAuth redirects. |
 
-## 🎉 Ready to Rock?
-BandMate is production-ready and waiting for your band to make some noise. Whether you're tracking demos in your bedroom or collaborating across continents, we've got you covered.
+Example for a reverse proxy setup:
+```bash
+-e APP_URL="https://bandmate.yourdomain.com"
+```
 
+### Email Notifications (Optional)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EMAIL_ENABLED` | `false` | Set to `true` to enable |
+| `EMAIL_HOST` | `smtp.example.com` | SMTP server |
+| `EMAIL_PORT` | `587` | SMTP port |
+| `EMAIL_SECURE` | `false` | `true` for port 465 (SSL) |
+| `EMAIL_USER` | - | SMTP username |
+| `EMAIL_PASS` | - | SMTP password |
+| `EMAIL_FROM` | `BandMate <noreply@bandmate.local>` | Sender address |
+
+### Google OAuth (Optional)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GOOGLE_OAUTH_ENABLED` | `false` | Set to `true` to enable |
+| `GOOGLE_CLIENT_ID` | - | From Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | - | From Google Cloud Console |
+| `GOOGLE_CALLBACK_URL` | `http://localhost:3000/api/auth/google/callback` | OAuth callback URL |
+
+---
+
+## File Upload Limits
+
+These limits are built into the application:
+
+| File Type | Max Size | Formats |
+|-----------|----------|---------|
+| Images | 5 MB | JPEG, PNG, GIF, WebP |
+| Audio | 100 MB | MP3, WAV, OGG, FLAC, AAC, M4A |
+| Stems (ZIP) | 500 MB | ZIP |
+
+---
+
+## Data Persistence
+
+Mount these volumes to persist data:
+
+```yaml
+volumes:
+  - ./data:/app/data      # SQLite database
+  - ./uploads:/app/uploads # Uploaded files
+```
+
+---
+
+## Tech Stack
+
+**Frontend:** React, TypeScript, Vite, Tailwind CSS, Radix UI, Socket.io, Wavesurfer.js
+
+**Backend:** Node.js, Express, TypeScript, Prisma (SQLite), Socket.io, JWT auth
+
+---
 
 ## Contributing
 
@@ -121,4 +169,4 @@ BandMate is production-ready and waiting for your band to make some noise. Wheth
 
 ## License
 
-MIT License
+MIT

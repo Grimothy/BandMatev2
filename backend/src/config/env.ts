@@ -39,4 +39,11 @@ export const config = {
     from: process.env.EMAIL_FROM || 'BandMate <noreply@bandmate.local>',
     appUrl: process.env.APP_URL || 'http://localhost:5173',
   },
+
+  google: {
+    enabled: process.env.GOOGLE_OAUTH_ENABLED === 'true',
+    clientId: process.env.GOOGLE_CLIENT_ID || '',
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    callbackUrl: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/api/auth/google/callback',
+  },
 };
