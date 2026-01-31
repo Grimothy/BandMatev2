@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ManagedFile, FileHierarchy } from '../../types';
 import { getManagedFiles, getFileHierarchy, deleteManagedFile, updateManagedFile } from '../../api/files';
 import { UploadModal } from '../../components/files/UploadModal';
+import { AudioPlayer } from '../../components/audio/AudioPlayer';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Loading } from '../../components/ui/Loading';
@@ -22,12 +23,6 @@ const FolderOpenIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   </svg>
 );
 
-const AudioIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-  </svg>
-);
-
 const ZipIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
@@ -40,11 +35,18 @@ const ChevronIcon = ({ expanded, className = "w-4 h-4" }: { expanded: boolean; c
   </svg>
 );
 
+const PlayCircleIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
+  </svg>
+);
+
 interface HierarchyWithFiles extends FileHierarchy {
   vibes: {
     id: string;
     name: string;
     slug: string;
+    image: string | null;
     cuts: {
       id: string;
       name: string;
@@ -52,6 +54,14 @@ interface HierarchyWithFiles extends FileHierarchy {
       files: ManagedFile[];
     }[];
   }[];
+}
+
+// Context for currently playing file
+interface PlayingContext {
+  file: ManagedFile;
+  vibeName: string;
+  vibeImage: string | null;
+  projectName: string;
 }
 
 export function FileExplorer() {
@@ -76,6 +86,9 @@ export function FileExplorer() {
   // Delete confirmation
   const [deletingFile, setDeletingFile] = useState<ManagedFile | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Audio player
+  const [playingContext, setPlayingContext] = useState<PlayingContext | null>(null);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -197,6 +210,19 @@ export function FileExplorer() {
     document.body.removeChild(link);
   };
 
+  const handlePlayFile = (file: ManagedFile, vibeName: string, vibeImage: string | null, projectName: string) => {
+    setPlayingContext({
+      file,
+      vibeName,
+      vibeImage,
+      projectName,
+    });
+  };
+
+  const handleClosePlayer = () => {
+    setPlayingContext(null);
+  };
+
   const expandAll = () => {
     setExpandedProjects(new Set(hierarchy.map(p => p.id)));
     setExpandedVibes(new Set(hierarchy.flatMap(p => p.vibes.map(v => v.id))));
@@ -216,7 +242,7 @@ export function FileExplorer() {
   const totalFiles = files.length;
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${playingContext ? 'pb-48' : ''}`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -351,10 +377,30 @@ export function FileExplorer() {
                                         cut.files.map(file => (
                                           <div
                                             key={file.id}
-                                            className="flex items-center gap-2 pl-20 pr-3 py-2 hover:bg-surface-light group"
+                                            className={`flex items-center gap-2 pl-20 pr-3 py-2 hover:bg-surface-light group cursor-pointer ${
+                                              playingContext?.file.id === file.id ? 'bg-primary/5' : ''
+                                            }`}
+                                            onClick={() => {
+                                              if (file.type === 'CUT') {
+                                                handlePlayFile(file, vibe.name, vibe.image, project.name);
+                                              }
+                                            }}
                                           >
                                             {file.type === 'CUT' ? (
-                                              <AudioIcon className="w-4 h-4 text-primary flex-shrink-0" />
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handlePlayFile(file, vibe.name, vibe.image, project.name);
+                                                }}
+                                                className={`flex-shrink-0 transition-colors ${
+                                                  playingContext?.file.id === file.id
+                                                    ? 'text-primary'
+                                                    : 'text-muted hover:text-primary'
+                                                }`}
+                                                title="Play"
+                                              >
+                                                <PlayCircleIcon className="w-5 h-5" />
+                                              </button>
                                             ) : (
                                               <ZipIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
                                             )}
@@ -373,7 +419,7 @@ export function FileExplorer() {
                                             </span>
                                             
                                             {/* File Actions */}
-                                            <div className="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex items-center gap-1 ml-auto">
                                               <button
                                                 onClick={() => handleDownload(file)}
                                                 className="p-1 text-muted hover:text-primary hover:bg-primary/10 rounded"
@@ -503,6 +549,22 @@ export function FileExplorer() {
           </div>
         </div>
       </Modal>
+
+      {/* Fixed Audio Player */}
+      {playingContext && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-background/80 backdrop-blur-lg border-t border-border">
+          <div className="max-w-4xl mx-auto">
+            <AudioPlayer
+              audioUrl={`/${playingContext.file.path}`}
+              trackName={playingContext.file.name || playingContext.file.originalName}
+              vibeImage={playingContext.vibeImage}
+              vibeName={playingContext.vibeName}
+              projectName={playingContext.projectName}
+              onClose={handleClosePlayer}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

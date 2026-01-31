@@ -45,6 +45,7 @@ export interface Cut {
   name: string;
   slug: string;
   vibeId: string;
+  order: number;
   createdAt: string;
   updatedAt: string;
   vibe?: Vibe;
@@ -113,6 +114,8 @@ export interface ManagedFile {
   type: 'CUT' | 'STEM';
   duration?: number | null;  // Audio-specific
   waveformData?: string | null;  // Audio-specific
+  isPublic: boolean;
+  shareToken?: string | null;
   cutId: string;
   uploadedById: string;
   uploadedBy?: Pick<User, 'id' | 'name'>;
@@ -139,6 +142,7 @@ export interface FileHierarchy {
     id: string;
     name: string;
     slug: string;
+    image: string | null;
     cuts: Pick<Cut, 'id' | 'name' | 'slug'>[];
   }[];
 }

@@ -39,9 +39,16 @@ export function Login() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
       {/* Logo */}
-      <h1 className="text-4xl md:text-5xl font-bold text-primary italic mb-8">
-        BandMate Login
-      </h1>
+      <div className="mb-8 flex flex-col items-center">
+        <img 
+          src="/logo.png" 
+          alt="BandMate" 
+          className="w-16 h-16 rounded object-contain mb-4"
+        />
+        <h1 className="text-4xl md:text-5xl font-bold text-primary italic">
+          BandMate Login
+        </h1>
+      </div>
 
       {/* Login Card */}
       <div className="w-full max-w-md bg-surface border border-border rounded-2xl p-6 md:p-8">

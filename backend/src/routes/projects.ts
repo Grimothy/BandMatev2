@@ -5,6 +5,7 @@ import { adminMiddleware } from '../middleware/admin';
 import { uploadImage, deleteFile } from '../services/upload';
 import { createProjectFolder, deleteProjectFolder } from '../services/folders';
 import { generateUniqueSlug } from '../utils/slug';
+import { createNotification } from '../services/notifications';
 import path from 'path';
 
 const router = Router();
@@ -339,6 +340,16 @@ router.post('/:id/members', adminMiddleware, async (req: AuthRequest, res: Respo
           select: { id: true, name: true, email: true },
         },
       },
+    });
+
+    // Send notification to the added user
+    await createNotification({
+      recipientId: userId,
+      type: 'SUCCESS',
+      title: 'Added to Project',
+      message: `You have been added to the project "${project.name}".`,
+      resourceLink: `/projects/${project.slug}`,
+      sendEmail: true, // Always send email for project invites
     });
 
     res.status(201).json(member);

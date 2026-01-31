@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { User } from '../types';
+import { User, ManagedFile } from '../types';
 import { login as apiLogin, logout as apiLogout, getCurrentUser } from '../api/auth';
 
 interface AuthContextType {
@@ -7,6 +7,8 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  /** Check if current user can modify a file (owner or admin) */
+  canModifyFile: (file: ManagedFile | { uploadedById: string }) => boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -52,11 +54,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
+  const canModifyFile = useCallback((file: ManagedFile | { uploadedById: string }) => {
+    if (!user) return false;
+    return file.uploadedById === user.id || user.role === 'ADMIN';
+  }, [user]);
+
   const value: AuthContextType = {
     user,
     isLoading,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'ADMIN',
+    canModifyFile,
     login,
     logout,
     refreshUser,

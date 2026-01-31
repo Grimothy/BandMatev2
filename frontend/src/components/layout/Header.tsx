@@ -1,6 +1,7 @@
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
+import { NotificationBell } from './NotificationBell';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -48,7 +49,10 @@ export function Header({ onMenuClick }: HeaderProps) {
       </div>
 
       {/* Right side */}
-      <div className="relative" ref={dropdownRef}>
+      <div className="flex items-center gap-2">
+        <NotificationBell />
+        
+        <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setShowDropdown(!showDropdown)}
           className="flex items-center gap-2 p-2 rounded-lg hover:bg-surface-light transition-colors"
@@ -86,6 +90,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             </button>
           </div>
         )}
+        </div>
       </div>
     </header>
   );

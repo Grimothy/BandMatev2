@@ -93,7 +93,7 @@ router.get('/vibe/:vibeId', async (req: AuthRequest, res: Response) => {
           select: { comments: true },
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { order: 'asc' },
     });
 
     res.json(cuts);
@@ -113,9 +113,13 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
       where: { id: cutId },
       include: {
         vibe: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            image: true,
             project: {
-              select: { id: true, name: true },
+              select: { id: true, name: true, slug: true },
             },
           },
         },
@@ -215,11 +219,20 @@ router.post('/vibe/:vibeId', async (req: AuthRequest, res: Response) => {
     const existingSlugs = existingCuts.map(c => c.slug);
     const slug = generateUniqueSlug(name, existingSlugs);
 
+    // Get the current max order for this vibe
+    const maxOrder = await prisma.cut.aggregate({
+      where: { vibeId },
+      _max: { order: true },
+    });
+
+    const nextOrder = (maxOrder._max.order ?? -1) + 1;
+
     const cut = await prisma.cut.create({
       data: {
         name,
         slug,
         vibeId,
+        order: nextOrder,
       },
       include: {
         managedFiles: {
@@ -262,6 +275,12 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
     const hasAccess = await checkCutAccess(user.id, user.role, cutId);
     if (!hasAccess) {
       res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    // Only admin can modify cuts
+    if (user.role !== 'ADMIN') {
+      res.status(403).json({ error: 'Only admins can modify cuts' });
       return;
     }
 
@@ -311,6 +330,12 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
     const hasAccess = await checkCutAccess(user.id, user.role, cutId);
     if (!hasAccess) {
       res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    // Only admin can delete cuts
+    if (user.role !== 'ADMIN') {
+      res.status(403).json({ error: 'Only admins can delete cuts' });
       return;
     }
 
@@ -788,6 +813,56 @@ router.put('/:id/lyrics', async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Update lyrics error:', error);
     res.status(500).json({ error: 'Failed to update lyrics' });
+  }
+});
+
+// Reorder cuts within a vibe
+router.put('/vibe/:vibeId/reorder', async (req: AuthRequest, res: Response) => {
+  try {
+    const user = req.user!;
+    const { vibeId } = req.params;
+    const { cutIds } = req.body;
+
+    if (!Array.isArray(cutIds)) {
+      res.status(400).json({ error: 'cutIds must be an array' });
+      return;
+    }
+
+    // Check access
+    const hasAccess = await checkVibeAccess(user.id, user.role, vibeId);
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    // Verify all cuts belong to this vibe
+    const cuts = await prisma.cut.findMany({
+      where: { vibeId },
+      select: { id: true },
+    });
+
+    const vibeCutIds = cuts.map(c => c.id);
+    const invalidCuts = cutIds.filter(id => !vibeCutIds.includes(id));
+
+    if (invalidCuts.length > 0) {
+      res.status(400).json({ error: 'Some cut IDs do not belong to this vibe' });
+      return;
+    }
+
+    // Update order for each cut
+    const updates = cutIds.map((cutId, index) =>
+      prisma.cut.update({
+        where: { id: cutId },
+        data: { order: index },
+      })
+    );
+
+    await prisma.$transaction(updates);
+
+    res.json({ message: 'Cuts reordered successfully' });
+  } catch (error) {
+    console.error('Reorder cuts error:', error);
+    res.status(500).json({ error: 'Failed to reorder cuts' });
   }
 });
 

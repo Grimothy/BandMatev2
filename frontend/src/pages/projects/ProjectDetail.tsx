@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { getProject, uploadProjectImage, addProjectMember, removeProjectMember } from '../../api/projects';
-import { createVibe, deleteVibe } from '../../api/vibes';
+import { createVibe, deleteVibe, updateVibe, uploadVibeImage } from '../../api/vibes';
+import { createCut, deleteCut, reorderCuts } from '../../api/cuts';
 import { getUsers } from '../../api/users';
 import { Project, User } from '../../types';
 import { Button } from '../../components/ui/Button';
@@ -10,6 +11,7 @@ import { Card, CardImage } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Textarea } from '../../components/ui/Input';
 import { Loading } from '../../components/ui/Loading';
+import { VibeCard } from '../../components/vibes/VibeCard';
 
 export function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -88,12 +90,60 @@ export function ProjectDetail() {
   };
 
   const handleDeleteVibe = async (vibeId: string) => {
-    if (!confirm('Are you sure you want to delete this vibe?')) return;
     try {
       await deleteVibe(vibeId);
       fetchProject();
     } catch (error) {
       console.error('Failed to delete vibe:', error);
+    }
+  };
+
+  const handleUpdateVibe = async (vibeId: string, data: { name?: string; theme?: string; notes?: string }) => {
+    await updateVibe(vibeId, data);
+    fetchProject();
+  };
+
+  const handleUploadVibeImage = async (vibeId: string, file: File) => {
+    await uploadVibeImage(vibeId, file);
+    fetchProject();
+  };
+
+  const handleCreateCut = async (vibeId: string, name: string) => {
+    await createCut(vibeId, name);
+    fetchProject();
+  };
+
+  const handleDeleteCut = async (cutId: string) => {
+    await deleteCut(cutId);
+    fetchProject();
+  };
+
+  const handleReorderCuts = async (vibeId: string, cutIds: string[]) => {
+    if (!project) return;
+
+    // Optimistically update the UI immediately
+    const updatedVibes = project.vibes?.map(vibe => {
+      if (vibe.id === vibeId) {
+        // Reorder cuts based on cutIds array
+        const reorderedCuts = cutIds
+          .map(cutId => vibe.cuts?.find(cut => cut.id === cutId))
+          .filter((cut): cut is NonNullable<typeof cut> => cut !== undefined);
+        
+        return { ...vibe, cuts: reorderedCuts };
+      }
+      return vibe;
+    });
+
+    setProject({ ...project, vibes: updatedVibes });
+
+    // Make API call in background
+    try {
+      await reorderCuts(vibeId, cutIds);
+      // Success - the optimistic update was correct, no need to refetch
+    } catch (error) {
+      console.error('Failed to reorder cuts:', error);
+      // On error, refetch to revert to server state
+      fetchProject();
     }
   };
 
@@ -252,43 +302,18 @@ export function ProjectDetail() {
             <p className="text-sm text-muted mt-1">Create a vibe to start organizing your music</p>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {project.vibes?.map((vibe) => (
-              <Card key={vibe.id} className="group relative">
-                <Link to={`/vibes/${vibe.id}`}>
-                  <CardImage src={vibe.image} alt={vibe.name} />
-                  <h3 className="mt-3 font-semibold text-text group-hover:text-primary transition-colors">
-                    {vibe.name}
-                  </h3>
-                  {vibe.theme && (
-                    <p className="text-sm text-muted">{vibe.theme}</p>
-                  )}
-                  <div className="mt-2 space-y-1">
-                    {vibe.cuts?.slice(0, 3).map((cut) => (
-                      <div key={cut.id} className="flex items-center gap-2 text-sm text-muted">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                        </svg>
-                        {cut.name}
-                      </div>
-                    ))}
-                    {(vibe.cuts?.length || 0) > 3 && (
-                      <p className="text-xs text-muted">+{vibe.cuts!.length - 3} more</p>
-                    )}
-                  </div>
-                </Link>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleDeleteVibe(vibe.id);
-                  }}
-                  className="absolute top-2 right-2 p-2 bg-surface/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity text-error hover:bg-error hover:text-white"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </Card>
+              <VibeCard
+                key={vibe.id}
+                vibe={vibe}
+                onCreateCut={handleCreateCut}
+                onDeleteCut={handleDeleteCut}
+                onEditVibe={handleUpdateVibe}
+                onDeleteVibe={handleDeleteVibe}
+                onUploadImage={handleUploadVibeImage}
+                onReorderCuts={handleReorderCuts}
+              />
             ))}
           </div>
         )}

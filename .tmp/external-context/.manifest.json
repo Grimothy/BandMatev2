@@ -1,0 +1,11 @@
+[
+  {
+    "file": "radix-ui/action-menus.md",
+    "source": "Official Docs",
+    "library": "Radix UI",
+    "package": "@radix-ui/react-dropdown-menu, @radix-ui/react-context-menu",
+    "topic": "action-menus",
+    "fetched": "2026-01-30",
+    "official_docs": "https://www.radix-ui.com/primitives/docs/components/dropdown-menu, https://www.radix-ui.com/primitives/docs/components/context-menu"
+  }
+]

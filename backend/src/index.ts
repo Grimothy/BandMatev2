@@ -1,4 +1,5 @@
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
@@ -6,8 +7,14 @@ import { config } from './config/env';
 import routes from './routes';
 import { errorHandler, notFoundHandler } from './middleware/error';
 import { cleanupExpiredTokens } from './services/auth';
+import { initializeSocket } from './services/socket';
+import { cleanupOldNotifications } from './services/notifications';
 
 const app = express();
+const httpServer = createServer(app);
+
+// Initialize Socket.io
+initializeSocket(httpServer);
 
 // Middleware
 app.use(cors({
@@ -47,8 +54,13 @@ setInterval(() => {
   cleanupExpiredTokens().catch(console.error);
 }, 60 * 60 * 1000);
 
+// Cleanup old notifications daily
+setInterval(() => {
+  cleanupOldNotifications(30).catch(console.error);
+}, 24 * 60 * 60 * 1000);
+
 // Start server
-app.listen(config.port, () => {
+httpServer.listen(config.port, () => {
   console.log(`BandMate server running on port ${config.port}`);
   console.log(`Environment: ${config.nodeEnv}`);
 });

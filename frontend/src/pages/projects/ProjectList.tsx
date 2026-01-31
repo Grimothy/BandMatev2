@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { getProjects, createProject, deleteProject } from '../../api/projects';
+import { getProjects, createProject, deleteProject, updateProject, uploadProjectImage } from '../../api/projects';
 import { Project } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Card, CardImage } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Loading } from '../../components/ui/Loading';
+import { ActionMenu } from '../../components/ui/ActionMenu';
 
 export function ProjectList() {
   const { isAdmin } = useAuth();
@@ -17,6 +18,16 @@ export function ProjectList() {
   const [newProjectName, setNewProjectName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
+  
+  // Edit project state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editProjectName, setEditProjectName] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editError, setEditError] = useState('');
+  
+  // Image upload refs (one per project)
+  const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
   const fetchProjects = async () => {
     try {
@@ -68,6 +79,76 @@ export function ProjectList() {
     }
   };
 
+  const handleEdit = async () => {
+    if (!editingProject || !editProjectName.trim()) {
+      setEditError('Project name is required');
+      return;
+    }
+
+    setIsEditing(true);
+    setEditError('');
+
+    try {
+      await updateProject(editingProject.id, editProjectName);
+      setShowEditModal(false);
+      setEditingProject(null);
+      setEditProjectName('');
+      fetchProjects();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      setEditError(error.response?.data?.error || 'Failed to update project');
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  const handleImageUpload = async (projectId: string, file: File) => {
+    try {
+      await uploadProjectImage(projectId, file);
+      fetchProjects();
+    } catch (error) {
+      console.error('Failed to upload image:', error);
+    }
+  };
+
+  const openEditModal = (project: Project) => {
+    setEditingProject(project);
+    setEditProjectName(project.name);
+    setEditError('');
+    setShowEditModal(true);
+  };
+
+  const getActionMenuItems = (project: Project) => [
+    {
+      label: 'Edit Project',
+      icon: (
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+      ),
+      onClick: () => openEditModal(project),
+    },
+    {
+      label: 'Upload Image',
+      icon: (
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      ),
+      onClick: () => fileInputRefs.current[project.id]?.click(),
+    },
+    {
+      label: 'Delete Project',
+      icon: (
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      ),
+      onClick: () => handleDelete(project.id),
+      variant: 'danger' as const,
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -114,17 +195,25 @@ export function ProjectList() {
               </Link>
               
               {isAdmin && (
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleDelete(project.id);
-                  }}
-                  className="absolute top-2 right-2 p-2 bg-surface/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity text-error hover:bg-error hover:text-white"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                <>
+                  <ActionMenu 
+                    items={getActionMenuItems(project)} 
+                    className="absolute top-2 right-2 bg-surface/80 rounded-lg"
+                  />
+                  <input
+                    ref={(el) => { fileInputRefs.current[project.id] = el; }}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleImageUpload(project.id, file);
+                        e.target.value = '';
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </>
               )}
             </Card>
           ))}
@@ -156,6 +245,37 @@ export function ProjectList() {
             </Button>
             <Button onClick={handleCreate} isLoading={isCreating}>
               Create Project
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingProject(null);
+          setEditProjectName('');
+          setEditError('');
+        }}
+        title="Edit Project"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Project Name"
+            placeholder="Enter project name"
+            value={editProjectName}
+            onChange={(e) => setEditProjectName(e.target.value)}
+            error={editError}
+            autoFocus
+          />
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setShowEditModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEdit} isLoading={isEditing}>
+              Save Changes
             </Button>
           </div>
         </div>

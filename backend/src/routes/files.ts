@@ -1,7 +1,9 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { deleteFile, uploadCutAudio, uploadCutStem, getCutAudioFilePath, getCutStemFilePath } from '../services/upload';
+import { createBulkNotifications } from '../services/notifications';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -21,7 +23,11 @@ router.get('/meta/hierarchy', async (req: AuthRequest, res: Response) => {
       projects = await prisma.project.findMany({
         include: {
           vibes: {
-            include: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              image: true,
               cuts: {
                 select: { id: true, name: true, slug: true },
               },
@@ -37,7 +43,11 @@ router.get('/meta/hierarchy', async (req: AuthRequest, res: Response) => {
           project: {
             include: {
               vibes: {
-                include: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  image: true,
                   cuts: {
                     select: { id: true, name: true, slug: true },
                   },
@@ -378,6 +388,25 @@ router.post(
         },
       });
 
+      // Notify other project members about the new file upload
+      const projectMembers = await prisma.projectMember.findMany({
+        where: {
+          projectId: cut.vibe.projectId,
+          userId: { not: user.id }, // Exclude the uploader
+        },
+        select: { userId: true },
+      });
+
+      if (projectMembers.length > 0) {
+        const recipientIds = projectMembers.map(m => m.userId);
+        await createBulkNotifications(recipientIds, {
+          type: 'INFO',
+          title: 'New Audio Uploaded',
+          message: `${user.name} uploaded a new audio file "${req.file.originalname}" to ${cut.name}.`,
+          resourceLink: `/projects/${cut.vibe.project.slug}/vibes/${cut.vibe.slug}/cuts/${cut.slug}`,
+        });
+      }
+
       res.status(201).json(managedFile);
     } catch (error) {
       console.error('Upload cut error:', error);
@@ -471,6 +500,12 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Only file owner or admin can modify
+    if (existing.uploadedById !== user.id && user.role !== 'ADMIN') {
+      res.status(403).json({ error: 'Only file owner or admin can modify this file' });
+      return;
+    }
+
     const updated = await prisma.managedFile.update({
       where: { id: fileId },
       data: {
@@ -523,6 +558,12 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Only file owner or admin can delete
+    if (existing.uploadedById !== user.id && user.role !== 'ADMIN') {
+      res.status(403).json({ error: 'Only file owner or admin can delete this file' });
+      return;
+    }
+
     // Delete file from disk
     try {
       await deleteFile(existing.path);
@@ -539,6 +580,105 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Delete file error:', error);
     res.status(500).json({ error: 'Failed to delete file' });
+  }
+});
+
+// Share file publicly
+router.post('/:id/share', async (req: AuthRequest, res: Response) => {
+  try {
+    const user = req.user!;
+    const fileId = req.params.id;
+
+    const existing = await prisma.managedFile.findUnique({
+      where: { id: fileId },
+    });
+
+    if (!existing) {
+      res.status(404).json({ error: 'File not found' });
+      return;
+    }
+
+    // Check access
+    const hasAccess = await checkFileAccess(user.id, user.role, fileId);
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    // Only file owner or admin can share
+    if (existing.uploadedById !== user.id && user.role !== 'ADMIN') {
+      res.status(403).json({ error: 'Only file owner or admin can share this file' });
+      return;
+    }
+
+    // Generate share token if not already shared
+    const shareToken = existing.shareToken || crypto.randomUUID();
+
+    const updated = await prisma.managedFile.update({
+      where: { id: fileId },
+      data: {
+        isPublic: true,
+        shareToken,
+      },
+      include: {
+        uploadedBy: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Share file error:', error);
+    res.status(500).json({ error: 'Failed to share file' });
+  }
+});
+
+// Unshare file (make private)
+router.delete('/:id/share', async (req: AuthRequest, res: Response) => {
+  try {
+    const user = req.user!;
+    const fileId = req.params.id;
+
+    const existing = await prisma.managedFile.findUnique({
+      where: { id: fileId },
+    });
+
+    if (!existing) {
+      res.status(404).json({ error: 'File not found' });
+      return;
+    }
+
+    // Check access
+    const hasAccess = await checkFileAccess(user.id, user.role, fileId);
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    // Only file owner or admin can unshare
+    if (existing.uploadedById !== user.id && user.role !== 'ADMIN') {
+      res.status(403).json({ error: 'Only file owner or admin can unshare this file' });
+      return;
+    }
+
+    const updated = await prisma.managedFile.update({
+      where: { id: fileId },
+      data: {
+        isPublic: false,
+        shareToken: null,
+      },
+      include: {
+        uploadedBy: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Unshare file error:', error);
+    res.status(500).json({ error: 'Failed to unshare file' });
   }
 });
 

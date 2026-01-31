@@ -73,6 +73,29 @@ export async function deleteManagedFile(id: string): Promise<void> {
   await api.delete(`/files/${id}`);
 }
 
+export async function shareFile(id: string): Promise<ManagedFile> {
+  const response = await api.post<ManagedFile>(`/files/${id}/share`);
+  return response.data;
+}
+
+export async function unshareFile(id: string): Promise<ManagedFile> {
+  const response = await api.delete<ManagedFile>(`/files/${id}/share`);
+  return response.data;
+}
+
+export function getPublicShareUrl(shareToken: string): string {
+  // Use the current origin for the public share URL
+  // Points to the frontend shared file player page
+  const baseUrl = window.location.origin;
+  return `${baseUrl}/shared/${shareToken}`;
+}
+
+// Get the direct download URL for a shared file
+export function getPublicFileDownloadUrl(shareToken: string): string {
+  const baseUrl = window.location.origin;
+  return `${baseUrl}/api/public/files/${shareToken}`;
+}
+
 export async function getFileHierarchy(): Promise<FileHierarchy[]> {
   const response = await api.get<FileHierarchy[]>('/files/meta/hierarchy');
   return response.data;

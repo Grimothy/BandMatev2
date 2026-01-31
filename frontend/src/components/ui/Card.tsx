@@ -1,41 +1,121 @@
-import React from 'react';
+import * as React from "react"
+import { cn } from "@/lib/utils"
 
-interface CardProps {
-  children: React.ReactNode;
-  className?: string;
-  onClick?: () => void;
-  hoverable?: boolean;
+// Base Card components (shadcn style)
+const BaseCard = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "rounded-xl border bg-card text-card-foreground shadow",
+      className
+    )}
+    {...props}
+  />
+))
+BaseCard.displayName = "BaseCard"
+
+const CardHeader = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex flex-col space-y-1.5 p-6", className)}
+    {...props}
+  />
+))
+CardHeader.displayName = "CardHeader"
+
+const CardTitle = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("font-semibold leading-none tracking-tight", className)}
+    {...props}
+  />
+))
+CardTitle.displayName = "CardTitle"
+
+const CardDescription = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props}
+  />
+))
+CardDescription.displayName = "CardDescription"
+
+const CardContent = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+))
+CardContent.displayName = "CardContent"
+
+const CardFooter = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex items-center p-6 pt-0", className)}
+    {...props}
+  />
+))
+CardFooter.displayName = "CardFooter"
+
+// Enhanced Card with hoverable support (backward compatible)
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  hoverable?: boolean
 }
 
-export function Card({ children, className = '', onClick, hoverable = false }: CardProps) {
-  const hoverClasses = hoverable
-    ? 'cursor-pointer hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all'
-    : '';
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, hoverable = false, onClick, children, ...props }, ref) => {
+    const hoverClasses = hoverable
+      ? 'cursor-pointer hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all'
+      : ''
 
-  return (
-    <div
-      className={`bg-surface border border-border rounded-xl p-4 ${hoverClasses} ${className}`}
-      onClick={onClick}
-    >
-      {children}
-    </div>
-  );
-}
+    return (
+      <BaseCard
+        ref={ref}
+        className={cn("p-4", hoverClasses, className)}
+        onClick={onClick}
+        {...props}
+      >
+        {children}
+      </BaseCard>
+    )
+  }
+)
+Card.displayName = "Card"
 
+// CardImage component (backward compatible)
 interface CardImageProps {
-  src: string | null;
-  alt: string;
-  className?: string;
+  src: string | null
+  alt: string
+  className?: string
 }
 
-export function CardImage({ src, alt, className = '' }: CardImageProps) {
+function CardImage({ src, alt, className = '' }: CardImageProps) {
   if (!src) {
     return (
       <div
-        className={`w-full aspect-video bg-surface-light rounded-lg flex items-center justify-center ${className}`}
+        className={cn(
+          "w-full aspect-video bg-secondary rounded-lg flex items-center justify-center",
+          className
+        )}
       >
         <svg
-          className="w-12 h-12 text-muted"
+          className="w-12 h-12 text-muted-foreground"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -48,14 +128,16 @@ export function CardImage({ src, alt, className = '' }: CardImageProps) {
           />
         </svg>
       </div>
-    );
+    )
   }
 
   return (
     <img
       src={`/${src}`}
       alt={alt}
-      className={`w-full aspect-video object-cover rounded-lg ${className}`}
+      className={cn("w-full aspect-video object-cover rounded-lg", className)}
     />
-  );
+  )
 }
+
+export { Card, CardImage, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }

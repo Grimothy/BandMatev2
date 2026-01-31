@@ -93,9 +93,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-border">
           <Link to="/" className="flex items-center gap-2" onClick={onClose}>
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-background font-bold text-lg">B</span>
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="BandMate" 
+              className="w-8 h-8 rounded object-contain"
+            />
             <span className="text-xl font-bold text-primary italic">BandMate</span>
           </Link>
           <button

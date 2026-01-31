@@ -16,9 +16,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  projects     ProjectMember[]
-  comments     Comment[]
-  managedFiles ManagedFile[]
+  projects      ProjectMember[]
+  comments      Comment[]
+  managedFiles  ManagedFile[]
+  notifications Notification[]
 }
 
 model Project {
@@ -67,6 +68,7 @@ model Cut {
   name      String
   slug      String   // Filesystem-safe, immutable identifier
   vibeId    String
+  order     Int      @default(0) // For ordering cuts within a vibe
   lyrics    String?  // JSON string: array of { managedFileId, lines: [{ timestamp, text }] }
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -110,6 +112,10 @@ model ManagedFile {
   duration     Float?   // Audio duration in seconds
   waveformData String?  // Cached waveform data for visualization
   
+  // Public sharing
+  isPublic     Boolean  @default(false)
+  shareToken   String?  @unique  // UUID token for public share links
+  
   // Hierarchy linkage - cutId required, vibeId/projectId derivable via relations
   cutId        String
   uploadedById String
@@ -128,4 +134,18 @@ model RefreshToken {
   userId    String
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model Notification {
+  id           String   @id @default(uuid())
+  recipientId  String
+  type         String   // "INFO", "SUCCESS", "WARNING", "ERROR"
+  title        String
+  message      String
+  resourceLink String?  // e.g. "/projects/my-band/vibes"
+  isRead       Boolean  @default(false)
+  emailSent    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 }

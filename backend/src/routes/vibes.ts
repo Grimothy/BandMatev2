@@ -46,7 +46,7 @@ router.get('/project/:projectId', async (req: AuthRequest, res: Response) => {
       include: {
         cuts: {
           select: { id: true, name: true },
-          orderBy: { createdAt: 'asc' },
+          orderBy: { order: 'asc' },
         },
       },
       orderBy: { updatedAt: 'desc' },
@@ -84,7 +84,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
               },
             },
           },
-          orderBy: { createdAt: 'asc' },
+          orderBy: { order: 'asc' },
         },
       },
     });

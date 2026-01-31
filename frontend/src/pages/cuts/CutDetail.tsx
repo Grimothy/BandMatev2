@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getCut, uploadAudio, deleteAudio, updateAudioLabel, addComment, deleteComment, addReply, updateComment } from '../../api/cuts';
+import { getCut, uploadAudio, deleteAudio, updateAudioLabel, addComment, deleteComment, addReply, updateComment, updateCut, deleteCut } from '../../api/cuts';
 import { uploadCut } from '../../api/files';
 import { useAuth } from '../../hooks/useAuth';
 import { Cut, Comment } from '../../types';
@@ -8,10 +8,31 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Loading } from '../../components/ui/Loading';
+import { Modal } from '../../components/ui/Modal';
 import { Tabs, TabPanel } from '../../components/ui/Tabs';
 import { Waveform, WaveformHandle } from '../../components/audio/Waveform';
 import { CutFileExplorer } from '../../components/files/CutFileExplorer';
 import { LyricsEditor } from '../../components/lyrics/LyricsEditor';
+import { ActionMenu } from '../../components/ui/ActionMenu';
+
+// Icons for ActionMenu
+const InfoIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const EditIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+  </svg>
+);
+
+const DeleteIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
 
 // Tab type definition
 type CutTab = 'audio' | 'files' | 'lyrics';
@@ -268,7 +289,7 @@ function CommentItem({
 
 export function CutDetail() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const audioFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -291,6 +312,14 @@ export function CutDetail() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentContent, setEditingCommentContent] = useState('');
   const [isEditingComment, setIsEditingComment] = useState(false);
+  
+  // Cut action modals
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editCutName, setEditCutName] = useState('');
+  const [isUpdatingCut, setIsUpdatingCut] = useState(false);
+  const [isDeletingCut, setIsDeletingCut] = useState(false);
 
   const fetchCut = async () => {
     if (!id) return;
@@ -530,6 +559,43 @@ export function CutDetail() {
     return cut?.managedFiles?.find(a => a.id === selectedAudioFileId);
   };
 
+  // Cut action handlers
+  const handleOpenEditModal = () => {
+    if (cut) {
+      setEditCutName(cut.name);
+      setShowEditModal(true);
+    }
+  };
+
+  const handleSaveCutEdit = async () => {
+    if (!id || !editCutName.trim()) return;
+    
+    setIsUpdatingCut(true);
+    try {
+      await updateCut(id, editCutName);
+      setShowEditModal(false);
+      fetchCut();
+    } catch (error) {
+      console.error('Failed to update cut:', error);
+    } finally {
+      setIsUpdatingCut(false);
+    }
+  };
+
+  const handleDeleteCut = async () => {
+    if (!id || !cut) return;
+    
+    setIsDeletingCut(true);
+    try {
+      await deleteCut(id);
+      // Navigate back to the project page after deletion
+      navigate(`/projects/${cut.vibe?.project?.id}`);
+    } catch (error) {
+      console.error('Failed to delete cut:', error);
+      setIsDeletingCut(false);
+    }
+  };
+
   if (isLoading) {
     return <Loading className="py-12" />;
   }
@@ -550,18 +616,39 @@ export function CutDetail() {
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
-      <nav className="text-sm text-muted">
+      <nav className="flex items-center text-sm text-muted">
         <Link to="/projects" className="hover:text-text">Projects</Link>
         <span className="mx-2">/</span>
         <Link to={`/projects/${cut.vibe?.project?.id}`} className="hover:text-text">
           {cut.vibe?.project?.name}
         </Link>
         <span className="mx-2">/</span>
-        <Link to={`/vibes/${cut.vibe?.id}`} className="hover:text-text">
-          {cut.vibe?.name}
-        </Link>
+        <span className="text-muted">{cut.vibe?.name}</span>
         <span className="mx-2">/</span>
         <span className="text-text">{cut.name}</span>
+        <ActionMenu
+          className="ml-1 p-1"
+          items={[
+            {
+              label: 'View Info',
+              icon: <InfoIcon />,
+              onClick: () => setShowInfoModal(true),
+            },
+            {
+              label: 'Edit Details',
+              icon: <EditIcon />,
+              onClick: handleOpenEditModal,
+              visible: isAdmin,
+            },
+            {
+              label: 'Delete Cut',
+              icon: <DeleteIcon />,
+              onClick: () => setShowDeleteModal(true),
+              variant: 'danger',
+              visible: isAdmin,
+            },
+          ]}
+        />
       </nav>
 
       {/* Header */}
@@ -844,7 +931,10 @@ export function CutDetail() {
       <TabPanel id="files" activeTab={activeTab}>
         <CutFileExplorer 
           key={fileExplorerKey}
-          cutId={id!} 
+          cutId={id!}
+          vibeName={cut.vibe?.name}
+          vibeImage={cut.vibe?.image}
+          projectName={cut.vibe?.project?.name}
           onUploadRequest={() => fileInputRef.current?.click()}
           onFileChange={fetchCut}
         />
@@ -859,6 +949,96 @@ export function CutDetail() {
           getCurrentTime={getCurrentPlaybackTime}
         />
       </TabPanel>
+
+      {/* Cut Info Modal */}
+      <Modal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title="Cut Information"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-muted mb-1">Name</label>
+            <p className="text-text">{cut.name}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-muted mb-1">Project</label>
+            <p className="text-text">{cut.vibe?.project?.name}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-muted mb-1">Vibe</label>
+            <p className="text-text">{cut.vibe?.name}</p>
+          </div>
+          <div className="flex gap-8">
+            <div>
+              <label className="block text-sm font-medium text-muted mb-1">Audio Files</label>
+              <p className="text-text">{cut.managedFiles?.length || 0}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-muted mb-1">Comments</label>
+              <p className="text-text">{cut.comments?.length || 0}</p>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-muted mb-1">Created</label>
+            <p className="text-text">{new Date(cut.createdAt).toLocaleDateString()}</p>
+          </div>
+          <div className="flex justify-end pt-4 border-t border-border">
+            <Button variant="ghost" onClick={() => setShowInfoModal(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Cut Edit Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Edit Cut"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Name"
+            placeholder="Enter cut name..."
+            value={editCutName}
+            onChange={(e) => setEditCutName(e.target.value)}
+          />
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <Button variant="ghost" onClick={() => setShowEditModal(false)} disabled={isUpdatingCut}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveCutEdit} isLoading={isUpdatingCut}>
+              Save Changes
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Cut Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Cut"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-muted">
+            Are you sure you want to delete{' '}
+            <span className="text-text font-medium">{cut.name}</span>?
+            This will also delete all audio files, comments, and lyrics associated with this cut.
+            This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <Button variant="ghost" onClick={() => setShowDeleteModal(false)} disabled={isDeletingCut}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDeleteCut} isLoading={isDeletingCut}>
+              Delete Cut
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
