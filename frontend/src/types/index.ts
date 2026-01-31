@@ -3,6 +3,8 @@ export interface User {
   email: string;
   name: string;
   role: 'ADMIN' | 'MEMBER';
+  authProvider?: 'local' | 'google';
+  avatarUrl?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }

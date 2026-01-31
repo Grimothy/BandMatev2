@@ -1,24 +1,54 @@
+# BandMate Docker Compose
+# Usage: docker-compose up -d
+
 services:
   bandmate:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: grimothy/bandmate:latest
+    # Or build locally:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
     container_name: bandmate
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
     volumes:
       - ./data:/app/data
       - ./uploads:/app/uploads
     environment:
+      # Server
       - NODE_ENV=production
       - PORT=3000
+
+      # Database (SQLite, stored in ./data volume)
       - DATABASE_URL=file:/app/data/bandmate.db
-      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-bandmate-access-secret-change-me}
-      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-bandmate-refresh-secret-change-me}
-      - JWT_ACCESS_EXPIRY=15m
-      - JWT_REFRESH_EXPIRY=7d
-      - ADMIN_EMAIL=admin@bandmate.local
-      - ADMIN_PASSWORD=admin
+
+      # Authentication (CHANGE THESE IN PRODUCTION)
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-change-me-in-production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-change-me-in-production}
+      - JWT_ACCESS_EXPIRY=${JWT_ACCESS_EXPIRY:-15m}
+      - JWT_REFRESH_EXPIRY=${JWT_REFRESH_EXPIRY:-7d}
+
+      # Admin user (for initial seed)
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@bandmate.local}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+
+      # Reverse Proxy: Set to your public URL if behind nginx/traefik/etc
+      - APP_URL=${APP_URL:-http://localhost:3000}
+
+      # Optional: Email notifications
+      # - EMAIL_ENABLED=true
+      # - EMAIL_HOST=smtp.gmail.com
+      # - EMAIL_PORT=587
+      # - EMAIL_USER=your-email
+      # - EMAIL_PASS=your-password
+      # - EMAIL_FROM=BandMate <noreply@yourdomain.com>
+
+      # Optional: Google OAuth
+      # - GOOGLE_OAUTH_ENABLED=true
+      # - GOOGLE_CLIENT_ID=your-client-id
+      # - GOOGLE_CLIENT_SECRET=your-secret
+      # - GOOGLE_CALLBACK_URL=https://yourdomain.com/api/auth/google/callback
+
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
