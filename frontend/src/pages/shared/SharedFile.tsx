@@ -17,6 +17,7 @@ interface PublicFileInfo {
   vibeName?: string;
   vibeImage?: string | null;
   projectName?: string;
+  projectImage?: string | null;
 }
 
 // Icons
@@ -213,6 +214,7 @@ export function SharedFile() {
                 vibeImage={fileInfo.vibeImage}
                 vibeName={fileInfo.vibeName}
                 projectName={fileInfo.projectName}
+                projectImage={fileInfo.projectImage}
               />
             </div>
           )}

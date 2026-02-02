@@ -38,7 +38,7 @@ export interface Vibe {
   projectId: string;
   createdAt: string;
   updatedAt: string;
-  project?: Pick<Project, 'id' | 'name' | 'slug'>;
+  project?: Pick<Project, 'id' | 'name' | 'slug' | 'image'>;
   cuts: Cut[];
 }
 
@@ -140,6 +140,7 @@ export interface FileHierarchy {
   id: string;
   name: string;
   slug: string;
+  image: string | null;
   vibes: {
     id: string;
     name: string;

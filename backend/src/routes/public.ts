@@ -99,6 +99,7 @@ router.get('/files/:shareToken/info', async (req: Request, res: Response) => {
                 project: {
                   select: {
                     name: true,
+                    image: true,
                   },
                 },
               },
@@ -128,6 +129,7 @@ router.get('/files/:shareToken/info', async (req: Request, res: Response) => {
       vibeName: file.cut?.vibe?.name,
       vibeImage: file.cut?.vibe?.image,
       projectName: file.cut?.vibe?.project?.name,
+      projectImage: file.cut?.vibe?.project?.image,
     };
 
     res.json(response);

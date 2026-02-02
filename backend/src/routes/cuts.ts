@@ -119,7 +119,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
             slug: true,
             image: true,
             project: {
-              select: { id: true, name: true, slug: true },
+              select: { id: true, name: true, slug: true, image: true },
             },
           },
         },

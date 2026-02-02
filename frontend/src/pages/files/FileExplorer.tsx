@@ -62,6 +62,7 @@ interface PlayingContext {
   vibeName: string;
   vibeImage: string | null;
   projectName: string;
+  projectImage: string | null;
 }
 
 export function FileExplorer() {
@@ -210,12 +211,13 @@ export function FileExplorer() {
     document.body.removeChild(link);
   };
 
-  const handlePlayFile = (file: ManagedFile, vibeName: string, vibeImage: string | null, projectName: string) => {
+  const handlePlayFile = (file: ManagedFile, vibeName: string, vibeImage: string | null, projectName: string, projectImage: string | null) => {
     setPlayingContext({
       file,
       vibeName,
       vibeImage,
       projectName,
+      projectImage,
     });
   };
 
@@ -382,7 +384,7 @@ export function FileExplorer() {
                                             }`}
                                             onClick={() => {
                                               if (file.type === 'CUT') {
-                                                handlePlayFile(file, vibe.name, vibe.image, project.name);
+                                                handlePlayFile(file, vibe.name, vibe.image, project.name, project.image);
                                               }
                                             }}
                                           >
@@ -390,7 +392,7 @@ export function FileExplorer() {
                                               <button
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  handlePlayFile(file, vibe.name, vibe.image, project.name);
+                                                  handlePlayFile(file, vibe.name, vibe.image, project.name, project.image);
                                                 }}
                                                 className={`flex-shrink-0 transition-colors ${
                                                   playingContext?.file.id === file.id
@@ -560,6 +562,7 @@ export function FileExplorer() {
               vibeImage={playingContext.vibeImage}
               vibeName={playingContext.vibeName}
               projectName={playingContext.projectName}
+              projectImage={playingContext.projectImage}
               onClose={handleClosePlayer}
             />
           </div>

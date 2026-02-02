@@ -21,7 +21,11 @@ router.get('/meta/hierarchy', async (req: AuthRequest, res: Response) => {
     
     if (user.role === 'ADMIN') {
       projects = await prisma.project.findMany({
-        include: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          image: true,
           vibes: {
             select: {
               id: true,
@@ -41,7 +45,11 @@ router.get('/meta/hierarchy', async (req: AuthRequest, res: Response) => {
         where: { userId: user.id },
         include: {
           project: {
-            include: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              image: true,
               vibes: {
                 select: {
                   id: true,

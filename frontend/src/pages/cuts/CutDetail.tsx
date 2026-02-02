@@ -994,6 +994,7 @@ export function CutDetail() {
           vibeName={cut.vibe?.name}
           vibeImage={cut.vibe?.image}
           projectName={cut.vibe?.project?.name}
+          projectImage={cut.vibe?.project?.image}
           onUploadRequest={() => fileInputRef.current?.click()}
           onFileChange={fetchCut}
         />

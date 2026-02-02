@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useMediaSession } from '../../hooks/useMediaSession';
 
 interface AudioPlayerProps {
   audioUrl: string;
@@ -6,7 +7,13 @@ interface AudioPlayerProps {
   vibeImage?: string | null;
   vibeName?: string;
   projectName?: string;
+  /** Fallback image if vibeImage is not available */
+  projectImage?: string | null;
   onClose?: () => void;
+  /** Optional callback for previous track - if provided, shows prev button in OS media controls */
+  onPreviousTrack?: () => void;
+  /** Optional callback for next track - if provided, shows next button in OS media controls */
+  onNextTrack?: () => void;
 }
 
 // Icons
@@ -77,10 +84,16 @@ export function AudioPlayer({
   vibeImage,
   vibeName,
   projectName,
+  projectImage,
   onClose,
+  onPreviousTrack,
+  onNextTrack,
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLInputElement>(null);
+  
+  // Use vibeImage if available, otherwise fall back to projectImage
+  const artworkImage = vibeImage || projectImage;
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
@@ -256,6 +269,30 @@ export function AudioPlayer({
     }
   };
 
+  // Media Session API integration for lock screen controls
+  useMediaSession({
+    metadata: {
+      title: trackName,
+      artist: vibeName,
+      album: projectName,
+      artwork: artworkImage ? `${window.location.origin}/${artworkImage}` : undefined,
+    },
+    handlers: {
+      onPlay: () => audioRef.current?.play(),
+      onPause: () => audioRef.current?.pause(),
+      onPreviousTrack,
+      onNextTrack,
+      onSeekBackward: skipBackward,
+      onSeekForward: skipForward,
+    },
+    isPlaying,
+    positionState: {
+      duration,
+      position: currentTime,
+      playbackRate: 1.0,
+    },
+  });
+
   const VolumeIcon = isMuted || volume === 0 ? VolumeMuteIcon : volume < 0.5 ? VolumeLowIcon : VolumeHighIcon;
 
   return (
@@ -268,10 +305,10 @@ export function AudioPlayer({
         {/* Album art / Vibe image */}
         <div className="flex-shrink-0 mx-auto md:mx-0">
           <div className="w-24 h-24 md:w-20 md:h-20 rounded-lg overflow-hidden bg-surface-light flex items-center justify-center">
-            {vibeImage ? (
+            {artworkImage ? (
               <img
-                src={`/${vibeImage}`}
-                alt={vibeName || 'Album art'}
+                src={`/${artworkImage}`}
+                alt={vibeName || projectName || 'Album art'}
                 className="w-full h-full object-cover"
               />
             ) : (

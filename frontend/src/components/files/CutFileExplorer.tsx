@@ -76,11 +76,12 @@ interface CutFileExplorerProps {
   vibeName?: string;
   vibeImage?: string | null;
   projectName?: string;
+  projectImage?: string | null;
   onUploadRequest?: () => void;
   onFileChange?: () => void;
 }
 
-export function CutFileExplorer({ cutId, vibeName, vibeImage, projectName, onUploadRequest, onFileChange }: CutFileExplorerProps) {
+export function CutFileExplorer({ cutId, vibeName, vibeImage, projectName, projectImage, onUploadRequest, onFileChange }: CutFileExplorerProps) {
   const { canModifyFile } = useAuth();
   const [files, setFiles] = useState<ManagedFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -478,6 +479,7 @@ export function CutFileExplorer({ cutId, vibeName, vibeImage, projectName, onUpl
             vibeImage={vibeImage}
             vibeName={vibeName}
             projectName={projectName}
+            projectImage={projectImage}
             onClose={() => setPlayingFile(null)}
           />
         </div>
