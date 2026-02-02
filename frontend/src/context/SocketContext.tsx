@@ -126,6 +126,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     const token = localStorage.getItem('accessToken');
     if (!token) return;
 
+    // Avoid reconnecting if already connected with same user
+    if (socket?.connected) {
+      return;
+    }
+
     // Create socket connection
     const socketUrl = getSocketUrl();
     const newSocket = io(socketUrl, {
@@ -193,7 +198,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     return () => {
       newSocket.disconnect();
     };
-  }, [isAuthenticated, user, fetchNotifications]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.id]);
 
   const value: SocketContextType = {
     socket,

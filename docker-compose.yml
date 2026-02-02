@@ -4,7 +4,7 @@
 services:
   bandmate:
     image: grimothy/bandmate:latest
-    # Or build locally:
+    # Build locally:
     # build:
     #   context: .
     #   dockerfile: Dockerfile

@@ -62,7 +62,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       refreshStorage();
     }
-  }, [user, refreshStorage]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const login = async (email: string, password: string) => {
     const response = await apiLogin(email, password);
