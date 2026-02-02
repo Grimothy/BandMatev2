@@ -32,7 +32,7 @@ export function ActionMenu({ items, className = '' }: ActionMenuProps) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className={`p-2 text-muted hover:text-text hover:bg-surface-light rounded-lg transition-colors ${className}`}
+          className={`p-2 text-primary hover:text-primary-foreground hover:bg-primary/20 rounded-lg transition-colors border border-transparent hover:border-primary/30 ${className}`}
           aria-label="Actions menu"
           onClick={(e) => e.preventDefault()}
         >
