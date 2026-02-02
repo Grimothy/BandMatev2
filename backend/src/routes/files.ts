@@ -73,17 +73,21 @@ router.get('/meta/hierarchy', async (req: AuthRequest, res: Response) => {
 router.get('/storage', async (req: AuthRequest, res: Response) => {
   try {
     const user = req.user!;
+    const isAdmin = user.role === 'ADMIN';
 
-    // Get total storage used by user
+    // Admins see all files, users see only their own uploads
+    const whereClause = isAdmin ? {} : { uploadedById: user.id };
+
+    // Get total storage used
     const totalResult = await prisma.managedFile.aggregate({
-      where: { uploadedById: user.id },
+      where: whereClause,
       _sum: { fileSize: true },
     });
 
     // Get storage breakdown by file type
     const byTypeResult = await prisma.managedFile.groupBy({
       by: ['type'],
-      where: { uploadedById: user.id },
+      where: whereClause,
       _sum: { fileSize: true },
     });
 
@@ -98,7 +102,7 @@ router.get('/storage', async (req: AuthRequest, res: Response) => {
 
     // Get file count
     const fileCount = await prisma.managedFile.count({
-      where: { uploadedById: user.id },
+      where: whereClause,
     });
 
     res.json({
