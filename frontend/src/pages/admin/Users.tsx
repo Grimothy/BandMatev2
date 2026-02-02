@@ -7,7 +7,7 @@ import { getProjects } from '../../api/projects';
 import { User, Project } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { Modal } from '../../components/ui/Modal';
+import { SideSheet } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Loading } from '../../components/ui/Loading';
 
@@ -334,11 +334,22 @@ export function Users() {
         </div>
       )}
 
-      {/* Create/Edit Modal */}
-      <Modal
+      {/* Create/Edit User Side Sheet */}
+      <SideSheet
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         title={editingUser ? 'Edit User' : 'Create New User'}
+        description={editingUser ? 'Update user account details' : 'Add a new user to the system'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit} isLoading={isSubmitting}>
+              {editingUser ? 'Save Changes' : 'Create User'}
+            </Button>
+          </>
+        }
       >
         <div className="space-y-4">
           <Input
@@ -390,22 +401,29 @@ export function Users() {
             </div>
           </div>
           {error && <p className="text-error text-sm">{error}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setShowModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit} isLoading={isSubmitting}>
-              {editingUser ? 'Save Changes' : 'Create User'}
-            </Button>
-          </div>
         </div>
-      </Modal>
+      </SideSheet>
 
-      {/* Invite Modal */}
-      <Modal
+      {/* Invite User Side Sheet */}
+      <SideSheet
         isOpen={showInviteModal}
         onClose={() => setShowInviteModal(false)}
         title={inviteLink ? 'Invitation Created' : 'Invite User'}
+        description={inviteLink ? 'Share this link with the user' : 'Send an invitation to join the platform'}
+        footer={
+          inviteLink ? (
+            <Button onClick={() => setShowInviteModal(false)}>Done</Button>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={() => setShowInviteModal(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleInviteSubmit} isLoading={isSubmitting}>
+                Create Invitation
+              </Button>
+            </>
+          )
+        }
       >
         {inviteLink ? (
           <div className="space-y-4">
@@ -424,9 +442,6 @@ export function Users() {
             <p className="text-muted text-xs">
               This invitation expires in 7 days.
             </p>
-            <div className="flex justify-end pt-2">
-              <Button onClick={() => setShowInviteModal(false)}>Done</Button>
-            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -504,17 +519,9 @@ export function Users() {
               </div>
             )}
             {error && <p className="text-error text-sm">{error}</p>}
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="secondary" onClick={() => setShowInviteModal(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleInviteSubmit} isLoading={isSubmitting}>
-                Create Invitation
-              </Button>
-            </div>
           </div>
         )}
-      </Modal>
+      </SideSheet>
     </div>
   );
 }

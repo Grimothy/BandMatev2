@@ -1,11 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Vibe } from '../../types';
 import { Card, CardImage } from '../ui/Card';
 import { ActionMenu } from '../ui/ActionMenu';
-import { Modal } from '../ui/Modal';
+import { SideSheet } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { ImageUploadSheet } from '../files/ImageUploadSheet';
 import {
   DndContext,
   closestCenter,
@@ -130,7 +131,6 @@ export function VibeCard({
   onUploadImage,
   onReorderCuts,
 }: VibeCardProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -155,6 +155,7 @@ export function VibeCard({
   const [isExpanded, setIsExpanded] = useState(true);
   const [showAddCutModal, setShowAddCutModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showImageUpload, setShowImageUpload] = useState(false);
   const [cutName, setCutName] = useState('');
   const [editForm, setEditForm] = useState({
     name: vibe.name,
@@ -215,13 +216,8 @@ export function VibeCard({
     await onDeleteCut(cutId);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleImageUpload = async (file: File) => {
     await onUploadImage(vibe.id, file);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
   };
 
   const actionMenuItems = [
@@ -257,7 +253,7 @@ export function VibeCard({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
       ),
-      onClick: () => fileInputRef.current?.click(),
+      onClick: () => setShowImageUpload(true),
     },
     {
       label: 'Delete Vibe',
@@ -279,13 +275,6 @@ export function VibeCard({
           {/* Image */}
           <div className="w-32 h-32 flex-shrink-0 relative">
             <CardImage src={vibe.image} alt={vibe.name} className="!aspect-square h-full" />
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="hidden"
-            />
           </div>
 
           {/* Info */}
@@ -370,8 +359,8 @@ export function VibeCard({
         </div>
       </Card>
 
-      {/* Add Cut Modal */}
-      <Modal
+      {/* Add Cut Side Sheet */}
+      <SideSheet
         isOpen={showAddCutModal}
         onClose={() => {
           setShowAddCutModal(false);
@@ -379,6 +368,17 @@ export function VibeCard({
           setError('');
         }}
         title="Add New Cut"
+        description="Create a new cut in this vibe"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowAddCutModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddCut} isLoading={isSubmitting}>
+              Add Cut
+            </Button>
+          </>
+        }
       >
         <div className="space-y-4">
           <Input
@@ -392,26 +392,29 @@ export function VibeCard({
               if (e.key === 'Enter') handleAddCut();
             }}
           />
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setShowAddCutModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddCut} isLoading={isSubmitting}>
-              Add Cut
-            </Button>
-          </div>
         </div>
-      </Modal>
+      </SideSheet>
 
-      {/* Edit Vibe Modal */}
-      <Modal
+      {/* Edit Vibe Side Sheet */}
+      <SideSheet
         isOpen={showEditModal}
         onClose={() => {
           setShowEditModal(false);
           setError('');
         }}
         title="Edit Vibe"
+        description="Update the vibe details"
         size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowEditModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditVibe} isLoading={isSubmitting}>
+              Save Changes
+            </Button>
+          </>
+        }
       >
         <div className="space-y-4">
           <Input
@@ -440,16 +443,18 @@ export function VibeCard({
               className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-text placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
             />
           </div>
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setShowEditModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleEditVibe} isLoading={isSubmitting}>
-              Save Changes
-            </Button>
-          </div>
         </div>
-      </Modal>
+      </SideSheet>
+
+      {/* Vibe Image Upload Side Sheet */}
+      <ImageUploadSheet
+        isOpen={showImageUpload}
+        onClose={() => setShowImageUpload(false)}
+        onUpload={handleImageUpload}
+        title="Upload Vibe Image"
+        description={`Add a cover image for "${vibe.name}"`}
+        currentImage={vibe.image}
+      />
     </>
   );
 }

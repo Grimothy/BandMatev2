@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { Modal } from '../ui/Modal';
+import { SideSheet } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { FileHierarchy } from '../../types';
@@ -145,7 +145,27 @@ export function UploadModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Upload File" size="lg">
+    <SideSheet 
+      isOpen={isOpen} 
+      onClose={handleClose} 
+      title="Upload File" 
+      description="Upload audio files or stem packages to your project"
+      size="lg"
+      footer={
+        <>
+          <Button variant="ghost" onClick={handleClose} disabled={isUploading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            isLoading={isUploading}
+            disabled={!file || !cutId}
+          >
+            Upload {fileType === 'STEM' ? 'Stem' : 'Cut'}
+          </Button>
+        </>
+      }
+    >
       <div className="space-y-4">
         {/* Error Message */}
         {error && (
@@ -223,7 +243,7 @@ export function UploadModal({
         />
 
         {/* Hierarchy Selectors */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {/* Project Selector */}
           <div>
             <label className="block text-sm font-medium text-muted mb-1.5">
@@ -290,21 +310,7 @@ export function UploadModal({
             </select>
           </div>
         </div>
-
-        {/* Actions */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-border">
-          <Button variant="ghost" onClick={handleClose} disabled={isUploading}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            isLoading={isUploading}
-            disabled={!file || !cutId}
-          >
-            Upload {fileType === 'STEM' ? 'Stem' : 'Cut'}
-          </Button>
-        </div>
       </div>
-    </Modal>
+    </SideSheet>
   );
 }

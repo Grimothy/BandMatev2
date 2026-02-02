@@ -1,14 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { getProjects, createProject, deleteProject, updateProject, uploadProjectImage } from '../../api/projects';
 import { Project } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Card, CardImage } from '../../components/ui/Card';
-import { Modal } from '../../components/ui/Modal';
+import { SideSheet } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Loading } from '../../components/ui/Loading';
 import { ActionMenu } from '../../components/ui/ActionMenu';
+import { ImageUploadSheet } from '../../components/files/ImageUploadSheet';
 
 export function ProjectList() {
   const { isAdmin } = useAuth();
@@ -26,8 +27,9 @@ export function ProjectList() {
   const [isEditing, setIsEditing] = useState(false);
   const [editError, setEditError] = useState('');
   
-  // Image upload refs (one per project)
-  const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+  // Image upload state
+  const [showImageUpload, setShowImageUpload] = useState(false);
+  const [imageUploadProject, setImageUploadProject] = useState<Project | null>(null);
 
   const fetchProjects = async () => {
     try {
@@ -102,13 +104,10 @@ export function ProjectList() {
     }
   };
 
-  const handleImageUpload = async (projectId: string, file: File) => {
-    try {
-      await uploadProjectImage(projectId, file);
-      fetchProjects();
-    } catch (error) {
-      console.error('Failed to upload image:', error);
-    }
+  const handleImageUpload = async (file: File) => {
+    if (!imageUploadProject) return;
+    await uploadProjectImage(imageUploadProject.id, file);
+    fetchProjects();
   };
 
   const openEditModal = (project: Project) => {
@@ -116,6 +115,11 @@ export function ProjectList() {
     setEditProjectName(project.name);
     setEditError('');
     setShowEditModal(true);
+  };
+
+  const openImageUpload = (project: Project) => {
+    setImageUploadProject(project);
+    setShowImageUpload(true);
   };
 
   const getActionMenuItems = (project: Project) => [
@@ -135,7 +139,7 @@ export function ProjectList() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
       ),
-      onClick: () => fileInputRefs.current[project.id]?.click(),
+      onClick: () => openImageUpload(project),
     },
     {
       label: 'Delete Project',
@@ -195,25 +199,10 @@ export function ProjectList() {
               </Link>
               
               {isAdmin && (
-                <>
-                  <ActionMenu 
-                    items={getActionMenuItems(project)} 
-                    className="absolute top-2 right-2 bg-surface/80 rounded-lg"
-                  />
-                  <input
-                    ref={(el) => { fileInputRefs.current[project.id] = el; }}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        handleImageUpload(project.id, file);
-                        e.target.value = '';
-                      }
-                    }}
-                    className="hidden"
-                  />
-                </>
+                <ActionMenu 
+                  items={getActionMenuItems(project)} 
+                  className="absolute top-2 right-2 bg-surface/80 rounded-lg"
+                />
               )}
             </Card>
           ))}
@@ -221,7 +210,7 @@ export function ProjectList() {
       )}
 
       {/* Create Modal */}
-      <Modal
+      <SideSheet
         isOpen={showCreateModal}
         onClose={() => {
           setShowCreateModal(false);
@@ -229,6 +218,17 @@ export function ProjectList() {
           setError('');
         }}
         title="Create New Project"
+        description="Start a new music collaboration project"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreate} isLoading={isCreating}>
+              Create Project
+            </Button>
+          </>
+        }
       >
         <div className="space-y-4">
           <Input
@@ -239,19 +239,11 @@ export function ProjectList() {
             error={error}
             autoFocus
           />
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreate} isLoading={isCreating}>
-              Create Project
-            </Button>
-          </div>
         </div>
-      </Modal>
+      </SideSheet>
 
       {/* Edit Modal */}
-      <Modal
+      <SideSheet
         isOpen={showEditModal}
         onClose={() => {
           setShowEditModal(false);
@@ -260,6 +252,17 @@ export function ProjectList() {
           setEditError('');
         }}
         title="Edit Project"
+        description="Update project details"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowEditModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEdit} isLoading={isEditing}>
+              Save Changes
+            </Button>
+          </>
+        }
       >
         <div className="space-y-4">
           <Input
@@ -270,16 +273,21 @@ export function ProjectList() {
             error={editError}
             autoFocus
           />
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setShowEditModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleEdit} isLoading={isEditing}>
-              Save Changes
-            </Button>
-          </div>
         </div>
-      </Modal>
+      </SideSheet>
+
+      {/* Image Upload */}
+      <ImageUploadSheet
+        isOpen={showImageUpload}
+        onClose={() => {
+          setShowImageUpload(false);
+          setImageUploadProject(null);
+        }}
+        onUpload={handleImageUpload}
+        title="Upload Project Image"
+        description={imageUploadProject ? `Add a cover image for "${imageUploadProject.name}"` : 'Add a cover image'}
+        currentImage={imageUploadProject?.image}
+      />
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Loading } from '../../components/ui/Loading';
-import { Modal } from '../../components/ui/Modal';
+import { SideSheet, ConfirmationModal } from '../../components/ui/Modal';
 import { Tabs, TabPanel } from '../../components/ui/Tabs';
 import { Waveform, WaveformHandle } from '../../components/audio/Waveform';
 import { CutFileExplorer } from '../../components/files/CutFileExplorer';
@@ -1011,10 +1011,16 @@ export function CutDetail() {
       </TabPanel>
 
       {/* Cut Info Modal */}
-      <Modal
+      <SideSheet
         isOpen={showInfoModal}
         onClose={() => setShowInfoModal(false)}
         title="Cut Information"
+        description="Details about this cut"
+        footer={
+          <Button variant="ghost" onClick={() => setShowInfoModal(false)}>
+            Close
+          </Button>
+        }
       >
         <div className="space-y-4">
           <div>
@@ -1043,19 +1049,25 @@ export function CutDetail() {
             <label className="block text-sm font-medium text-muted mb-1">Created</label>
             <p className="text-text">{new Date(cut.createdAt).toLocaleDateString()}</p>
           </div>
-          <div className="flex justify-end pt-4 border-t border-border">
-            <Button variant="ghost" onClick={() => setShowInfoModal(false)}>
-              Close
-            </Button>
-          </div>
         </div>
-      </Modal>
+      </SideSheet>
 
       {/* Cut Edit Modal */}
-      <Modal
+      <SideSheet
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         title="Edit Cut"
+        description="Update cut details"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setShowEditModal(false)} disabled={isUpdatingCut}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveCutEdit} isLoading={isUpdatingCut}>
+              Save Changes
+            </Button>
+          </>
+        }
       >
         <div className="space-y-4">
           <Input
@@ -1064,30 +1076,21 @@ export function CutDetail() {
             value={editCutName}
             onChange={(e) => setEditCutName(e.target.value)}
           />
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
-            <Button variant="ghost" onClick={() => setShowEditModal(false)} disabled={isUpdatingCut}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveCutEdit} isLoading={isUpdatingCut}>
-              Save Changes
-            </Button>
-          </div>
         </div>
-      </Modal>
+      </SideSheet>
 
       {/* Cut Delete Confirmation Modal */}
-      <Modal
+      <ConfirmationModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         title="Delete Cut"
-        size="sm"
+        description="This action cannot be undone"
       >
         <div className="space-y-4">
           <p className="text-muted">
             Are you sure you want to delete{' '}
             <span className="text-text font-medium">{cut.name}</span>?
             This will also delete all audio files, comments, and lyrics associated with this cut.
-            This action cannot be undone.
           </p>
           <div className="flex justify-end gap-3 pt-4 border-t border-border">
             <Button variant="ghost" onClick={() => setShowDeleteModal(false)} disabled={isDeletingCut}>
@@ -1098,7 +1101,7 @@ export function CutDetail() {
             </Button>
           </div>
         </div>
-      </Modal>
+      </ConfirmationModal>
     </div>
   );
 }

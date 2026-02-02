@@ -2,8 +2,20 @@ import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetBody,
+  SheetFooter,
+  SheetTitle,
+  SheetDescription,
+} from "./sheet"
 
-// Base shadcn Dialog components
+// =============================================================================
+// BASE DIALOG COMPONENTS (for ConfirmationModal - centered dialogs)
+// =============================================================================
+
 const Dialog = DialogPrimitive.Root
 
 const DialogTrigger = DialogPrimitive.Trigger
@@ -106,26 +118,83 @@ const DialogDescription = React.forwardRef<
 ))
 DialogDescription.displayName = DialogPrimitive.Description.displayName
 
-// Enhanced Modal with backward-compatible API
-interface ModalProps {
+// =============================================================================
+// SIDESHEET - Animated side-drawer for forms, settings, creation panels
+// Uses the new Sheet component with motion animations
+// =============================================================================
+
+interface SideSheetProps {
   isOpen: boolean
   onClose: () => void
   title: string
   children: React.ReactNode
-  size?: 'sm' | 'md' | 'lg'
   description?: string
+  size?: 'sm' | 'md' | 'lg'
+  /** Content to render in the footer (typically action buttons) */
+  footer?: React.ReactNode
 }
 
 const sizeClasses = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-2xl',
+  sm: 'sm:w-[350px] sm:max-w-[350px]',
+  md: 'sm:w-[450px] sm:max-w-[450px]',
+  lg: 'sm:w-[550px] sm:max-w-[550px]',
 }
 
-function Modal({ isOpen, onClose, title, children, size = 'md', description }: ModalProps) {
+function SideSheet({ 
+  isOpen, 
+  onClose, 
+  title, 
+  children, 
+  description,
+  size = 'md',
+  footer,
+}: SideSheetProps) {
+  return (
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent 
+        side="right" 
+        className={cn("bg-card border-border w-full", sizeClasses[size])}
+      >
+        <SheetHeader>
+          <SheetTitle>{title}</SheetTitle>
+          {description && <SheetDescription>{description}</SheetDescription>}
+        </SheetHeader>
+        <SheetBody>
+          {children}
+        </SheetBody>
+        {footer && (
+          <SheetFooter>
+            {footer}
+          </SheetFooter>
+        )}
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+// =============================================================================
+// CONFIRMATIONMODAL - Centered dialog for delete confirmations
+// Intentionally interruptive to prevent accidental destructive actions
+// =============================================================================
+
+interface ConfirmationModalProps {
+  isOpen: boolean
+  onClose: () => void
+  title: string
+  children: React.ReactNode
+  description?: string
+}
+
+function ConfirmationModal({ 
+  isOpen, 
+  onClose, 
+  title, 
+  children, 
+  description,
+}: ConfirmationModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className={cn("bg-card border-border", sizeClasses[size])}>
+      <DialogContent className="bg-card border-border max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
@@ -136,8 +205,47 @@ function Modal({ isOpen, onClose, title, children, size = 'md', description }: M
   )
 }
 
+// =============================================================================
+// LEGACY MODAL - Deprecated, use SideSheet or ConfirmationModal instead
+// Kept for backward compatibility during migration
+// =============================================================================
+
+interface ModalProps {
+  isOpen: boolean
+  onClose: () => void
+  title: string
+  children: React.ReactNode
+  size?: 'sm' | 'md' | 'lg'
+  description?: string
+}
+
+/**
+ * @deprecated Use SideSheet for forms/settings or ConfirmationModal for confirmations
+ */
+function Modal({ isOpen, onClose, title, children, size = 'md', description }: ModalProps) {
+  // Map to SideSheet for backward compatibility
+  return (
+    <SideSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title={title}
+      description={description}
+      size={size}
+    >
+      {children}
+    </SideSheet>
+  )
+}
+
 export {
+  // New components (preferred)
+  SideSheet,
+  ConfirmationModal,
+  
+  // Legacy (deprecated, maps to SideSheet)
   Modal,
+  
+  // Base Dialog primitives (for advanced usage)
   Dialog,
   DialogPortal,
   DialogOverlay,

@@ -55,13 +55,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('[AuthContext] initAuth starting');
       setIsLoading(true);
       await refreshUser();
-      console.log('[AuthContext] refreshUser complete, calling refreshStorage');
-      // Fetch storage after user is loaded
-      refreshStorage();
+      console.log('[AuthContext] refreshUser complete');
+      // Storage will be fetched by the user?.id effect if user is authenticated
       setIsLoading(false);
     };
     initAuth();
-  }, [refreshUser, refreshStorage]);
+  }, [refreshUser]);
 
   // Fetch storage after user is authenticated
   useEffect(() => {

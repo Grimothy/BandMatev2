@@ -52,8 +52,10 @@ api.interceptors.response.use(
       } catch (refreshError) {
         // Refresh failed, clear token and redirect to login
         localStorage.removeItem('accessToken');
-        // Only redirect if not already on login page to avoid refresh loop
-        if (!window.location.pathname.startsWith('/login')) {
+        // Only redirect if not on login or public pages to avoid redirect loop
+        const publicPaths = ['/login', '/shared/', '/accept-invite'];
+        const isPublicPath = publicPaths.some(path => window.location.pathname.startsWith(path));
+        if (!isPublicPath) {
           window.location.href = '/login';
         }
         return Promise.reject(refreshError);

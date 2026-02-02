@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Loading } from '../ui/Loading';
-import { Modal } from '../ui/Modal';
+import { SideSheet, ConfirmationModal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { ActionMenu } from '../ui/ActionMenu';
 import { AudioPlayer } from '../audio/AudioPlayer';
@@ -349,10 +349,21 @@ export function CutFileExplorer({ cutId, vibeName, vibeImage, projectName, proje
       )}
 
       {/* Edit Modal */}
-      <Modal
+      <SideSheet
         isOpen={!!editingFile}
         onClose={() => setEditingFile(null)}
         title="Edit File"
+        description="Update file details"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setEditingFile(null)} disabled={isUpdating}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} isLoading={isUpdating}>
+              Save Changes
+            </Button>
+          </>
+        }
       >
         <div className="space-y-4">
           <Input
@@ -370,24 +381,15 @@ export function CutFileExplorer({ cutId, vibeName, vibeImage, projectName, proje
               <p className="text-sm text-text">{editingFile.originalName}</p>
             </div>
           )}
-          
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
-            <Button variant="ghost" onClick={() => setEditingFile(null)} disabled={isUpdating}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEdit} isLoading={isUpdating}>
-              Save Changes
-            </Button>
-          </div>
         </div>
-      </Modal>
+      </SideSheet>
 
       {/* Delete Confirmation Modal */}
-      <Modal
+      <ConfirmationModal
         isOpen={!!deletingFile}
         onClose={() => setDeletingFile(null)}
         title="Delete File"
-        size="sm"
+        description="This action cannot be undone"
       >
         <div className="space-y-4">
           <p className="text-muted">
@@ -395,7 +397,7 @@ export function CutFileExplorer({ cutId, vibeName, vibeImage, projectName, proje
             <span className="text-text font-medium">
               {deletingFile?.name || deletingFile?.originalName}
             </span>
-            ? This action cannot be undone.
+            ?
           </p>
           
           <div className="flex justify-end gap-3 pt-4 border-t border-border">
@@ -407,13 +409,19 @@ export function CutFileExplorer({ cutId, vibeName, vibeImage, projectName, proje
             </Button>
           </div>
         </div>
-      </Modal>
+      </ConfirmationModal>
 
       {/* Share Modal */}
-      <Modal
+      <SideSheet
         isOpen={!!sharingFile}
         onClose={() => setSharingFile(null)}
         title="Share File"
+        description="Manage public sharing settings"
+        footer={
+          <Button variant="ghost" onClick={() => setSharingFile(null)}>
+            Close
+          </Button>
+        }
       >
         <div className="space-y-4">
           <div>
@@ -461,14 +469,8 @@ export function CutFileExplorer({ cutId, vibeName, vibeImage, projectName, proje
               </div>
             </div>
           )}
-          
-          <div className="flex justify-end pt-4 border-t border-border">
-            <Button variant="ghost" onClick={() => setSharingFile(null)}>
-              Close
-            </Button>
-          </div>
         </div>
-      </Modal>
+      </SideSheet>
 
       {/* Audio Player */}
       {playingFile && (

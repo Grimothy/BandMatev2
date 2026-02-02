@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { getProject, uploadProjectImage, addProjectMember, removeProjectMember } from '../../api/projects';
@@ -8,21 +8,22 @@ import { getUsers } from '../../api/users';
 import { Project, User } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Card, CardImage } from '../../components/ui/Card';
-import { Modal } from '../../components/ui/Modal';
+import { SideSheet } from '../../components/ui/Modal';
 import { Input, Textarea } from '../../components/ui/Input';
 import { Loading } from '../../components/ui/Loading';
 import { VibeCard } from '../../components/vibes/VibeCard';
+import { ImageUploadSheet } from '../../components/files/ImageUploadSheet';
 
 export function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showVibeModal, setShowVibeModal] = useState(false);
   const [showMemberModal, setShowMemberModal] = useState(false);
+  const [showImageUpload, setShowImageUpload] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [vibeForm, setVibeForm] = useState({ name: '', theme: '', notes: '' });
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -55,16 +56,10 @@ export function ProjectDetail() {
     fetchProject();
   }, [id]);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !id) return;
-
-    try {
-      await uploadProjectImage(id, file);
-      fetchProject();
-    } catch (error) {
-      console.error('Failed to upload image:', error);
-    }
+  const handleImageUpload = async (file: File) => {
+    if (!id) return;
+    await uploadProjectImage(id, file);
+    fetchProject();
   };
 
   const handleCreateVibe = async () => {
@@ -212,24 +207,15 @@ export function ProjectDetail() {
         <div className="relative w-full md:w-64 flex-shrink-0">
           <CardImage src={project.image} alt={project.name} className="aspect-square" />
           {isAdmin && (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-2 right-2 p-2 bg-surface/80 rounded-lg text-muted hover:text-text transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
-            </>
+            <button
+              onClick={() => setShowImageUpload(true)}
+              className="absolute bottom-2 right-2 p-2 bg-surface/80 rounded-lg text-muted hover:text-text transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
           )}
         </div>
 
@@ -319,8 +305,8 @@ export function ProjectDetail() {
         )}
       </div>
 
-      {/* Create Vibe Modal */}
-      <Modal
+      {/* Create Vibe Side Sheet */}
+      <SideSheet
         isOpen={showVibeModal}
         onClose={() => {
           setShowVibeModal(false);
@@ -328,7 +314,18 @@ export function ProjectDetail() {
           setError('');
         }}
         title="Create New Vibe"
+        description="Add a new vibe to organize your music"
         size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowVibeModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateVibe} isLoading={isSubmitting}>
+              Create Vibe
+            </Button>
+          </>
+        }
       >
         <div className="space-y-4">
           <Input
@@ -352,19 +349,11 @@ export function ProjectDetail() {
             onChange={(e) => setVibeForm({ ...vibeForm, notes: e.target.value })}
             rows={3}
           />
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setShowVibeModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateVibe} isLoading={isSubmitting}>
-              Create Vibe
-            </Button>
-          </div>
         </div>
-      </Modal>
+      </SideSheet>
 
-      {/* Add Member Modal */}
-      <Modal
+      {/* Add Member Side Sheet */}
+      <SideSheet
         isOpen={showMemberModal}
         onClose={() => {
           setShowMemberModal(false);
@@ -372,6 +361,17 @@ export function ProjectDetail() {
           setError('');
         }}
         title="Add Member"
+        description="Select a user to add to this project"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowMemberModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddMember} isLoading={isSubmitting} disabled={!selectedUserId}>
+              Add Member
+            </Button>
+          </>
+        }
       >
         <div className="space-y-4">
           {availableUsers.length === 0 ? (
@@ -409,16 +409,18 @@ export function ProjectDetail() {
             </div>
           )}
           {error && <p className="text-error text-sm">{error}</p>}
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setShowMemberModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddMember} isLoading={isSubmitting} disabled={!selectedUserId}>
-              Add Member
-            </Button>
-          </div>
         </div>
-      </Modal>
+      </SideSheet>
+
+      {/* Project Image Upload Side Sheet */}
+      <ImageUploadSheet
+        isOpen={showImageUpload}
+        onClose={() => setShowImageUpload(false)}
+        onUpload={handleImageUpload}
+        title="Upload Project Image"
+        description="Add a cover image for your project"
+        currentImage={project.image}
+      />
     </div>
   );
 }

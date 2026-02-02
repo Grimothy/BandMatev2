@@ -6,7 +6,7 @@ import { AudioPlayer } from '../../components/audio/AudioPlayer';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Loading } from '../../components/ui/Loading';
-import { Modal } from '../../components/ui/Modal';
+import { SideSheet, ConfirmationModal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { formatFileSize } from '../../api/files';
 import {
@@ -477,11 +477,22 @@ export function FileExplorer() {
         defaultCutId={uploadTargetCutId}
       />
 
-      {/* Edit Modal */}
-      <Modal
+      {/* Edit File Side Sheet */}
+      <SideSheet
         isOpen={!!editingFile}
         onClose={() => setEditingFile(null)}
         title="Edit File"
+        description="Update file name and details"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setEditingFile(null)} disabled={isUpdating}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} isLoading={isUpdating}>
+              Save Changes
+            </Button>
+          </>
+        }
       >
         <div className="space-y-4">
           <Input
@@ -496,7 +507,7 @@ export function FileExplorer() {
               <label className="block text-sm font-medium text-muted mb-1.5">
                 Location
               </label>
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-sm flex-wrap">
                 <span className="px-2 py-1 bg-surface-light rounded text-muted">
                   {editingFile.cut.vibe.project.name}
                 </span>
@@ -511,24 +522,15 @@ export function FileExplorer() {
               </div>
             </div>
           )}
-          
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
-            <Button variant="ghost" onClick={() => setEditingFile(null)} disabled={isUpdating}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEdit} isLoading={isUpdating}>
-              Save Changes
-            </Button>
-          </div>
         </div>
-      </Modal>
+      </SideSheet>
 
       {/* Delete Confirmation Modal */}
-      <Modal
+      <ConfirmationModal
         isOpen={!!deletingFile}
         onClose={() => setDeletingFile(null)}
         title="Delete File"
-        size="sm"
+        description="This action cannot be undone"
       >
         <div className="space-y-4">
           <p className="text-muted">
@@ -536,7 +538,7 @@ export function FileExplorer() {
             <span className="text-text font-medium">
               {deletingFile?.name || deletingFile?.originalName}
             </span>
-            ? This action cannot be undone.
+            ?
           </p>
           
           <div className="flex justify-end gap-3 pt-4 border-t border-border">
@@ -548,7 +550,7 @@ export function FileExplorer() {
             </Button>
           </div>
         </div>
-      </Modal>
+      </ConfirmationModal>
 
       {/* Fixed Audio Player */}
       {playingContext && (
