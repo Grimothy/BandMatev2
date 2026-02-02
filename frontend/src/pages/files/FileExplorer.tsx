@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ManagedFile, FileHierarchy } from '../../types';
 import { getManagedFiles, getFileHierarchy, deleteManagedFile, updateManagedFile } from '../../api/files';
 import { UploadModal } from '../../components/files/UploadModal';
@@ -9,9 +9,23 @@ import { Loading } from '../../components/ui/Loading';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { formatFileSize } from '../../api/files';
+import {
+  FileTree,
+  FilesHighlight,
+  FolderItem,
+  FolderHeader,
+  FolderTrigger,
+  FolderContent,
+  FileHighlight,
+  FileItem,
+  FileIcon,
+  FileLabel,
+  FolderIcon,
+  ChevronIcon,
+} from '../../components/animate-ui';
 
 // Icons
-const FolderIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+const FolderClosedIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
   </svg>
@@ -26,12 +40,6 @@ const FolderOpenIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
 const ZipIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-  </svg>
-);
-
-const ChevronIcon = ({ expanded, className = "w-4 h-4" }: { expanded: boolean; className?: string }) => (
-  <svg className={`${className} transition-transform ${expanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
   </svg>
 );
 
@@ -70,10 +78,8 @@ export function FileExplorer() {
   const [files, setFiles] = useState<ManagedFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Expanded state
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
-  const [expandedVibes, setExpandedVibes] = useState<Set<string>>(new Set());
-  const [expandedCuts, setExpandedCuts] = useState<Set<string>>(new Set());
+  // Expanded state - now combined into a single array for FileTree
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
   
   // Upload modal
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -124,41 +130,20 @@ export function FileExplorer() {
     fetchData();
   }, []);
 
-  const toggleProject = (projectId: string) => {
-    setExpandedProjects(prev => {
-      const next = new Set(prev);
-      if (next.has(projectId)) {
-        next.delete(projectId);
-      } else {
-        next.add(projectId);
-      }
-      return next;
+  // Compute all possible IDs for expand/collapse all
+  const allFolderIds = useMemo(() => {
+    const ids: string[] = [];
+    hierarchy.forEach(project => {
+      ids.push(`project-${project.id}`);
+      project.vibes.forEach(vibe => {
+        ids.push(`vibe-${vibe.id}`);
+        vibe.cuts.forEach(cut => {
+          ids.push(`cut-${cut.id}`);
+        });
+      });
     });
-  };
-
-  const toggleVibe = (vibeId: string) => {
-    setExpandedVibes(prev => {
-      const next = new Set(prev);
-      if (next.has(vibeId)) {
-        next.delete(vibeId);
-      } else {
-        next.add(vibeId);
-      }
-      return next;
-    });
-  };
-
-  const toggleCut = (cutId: string) => {
-    setExpandedCuts(prev => {
-      const next = new Set(prev);
-      if (next.has(cutId)) {
-        next.delete(cutId);
-      } else {
-        next.add(cutId);
-      }
-      return next;
-    });
-  };
+    return ids;
+  }, [hierarchy]);
 
   const handleUploadToCut = (cutId: string) => {
     setUploadTargetCutId(cutId);
@@ -226,15 +211,11 @@ export function FileExplorer() {
   };
 
   const expandAll = () => {
-    setExpandedProjects(new Set(hierarchy.map(p => p.id)));
-    setExpandedVibes(new Set(hierarchy.flatMap(p => p.vibes.map(v => v.id))));
-    setExpandedCuts(new Set(hierarchy.flatMap(p => p.vibes.flatMap(v => v.cuts.map(c => c.id)))));
+    setExpandedItems(allFolderIds);
   };
 
   const collapseAll = () => {
-    setExpandedProjects(new Set());
-    setExpandedVibes(new Set());
-    setExpandedCuts(new Set());
+    setExpandedItems([]);
   };
 
   if (isLoading) {
@@ -272,201 +253,218 @@ export function FileExplorer() {
       {/* Tree View */}
       {hierarchy.length === 0 ? (
         <Card className="text-center py-12">
-          <FolderIcon className="w-16 h-16 text-muted mx-auto mb-4" />
+          <FolderClosedIcon className="w-16 h-16 text-muted mx-auto mb-4" />
           <p className="text-text font-medium">No projects found</p>
           <p className="text-sm text-muted mt-1">
             Create a project, vibe, and cut to start organizing files.
           </p>
         </Card>
       ) : (
-        <Card className="divide-y divide-border">
-          {hierarchy.map(project => (
-            <div key={project.id}>
-              {/* Project Row */}
-              <div
-                className="flex items-center gap-2 p-3 hover:bg-surface-light cursor-pointer"
-                onClick={() => toggleProject(project.id)}
-              >
-                <ChevronIcon expanded={expandedProjects.has(project.id)} className="w-4 h-4 text-muted" />
-                {expandedProjects.has(project.id) ? (
-                  <FolderOpenIcon className="w-5 h-5 text-yellow-500" />
-                ) : (
-                  <FolderIcon className="w-5 h-5 text-yellow-500" />
-                )}
-                <span className="font-medium text-text">{project.name}</span>
-                <span className="text-xs text-muted ml-auto">
-                  {project.vibes.length} vibe{project.vibes.length !== 1 ? 's' : ''}
-                </span>
-              </div>
+        <Card className="overflow-hidden">
+          <FileTree
+            value={expandedItems}
+            onValueChange={setExpandedItems}
+            highlightClassName="bg-surface-light"
+            highlightHover={false}
+          >
+            <FilesHighlight>
+              {hierarchy.map(project => (
+                <FolderItem key={project.id} id={`project-${project.id}`}>
+                  {/* Project Row */}
+                  <FolderHeader>
+                    <FileHighlight>
+                      <FolderTrigger className="gap-2 p-3 hover:bg-surface-light/50 w-full transition-colors">
+                        <ChevronIcon className="text-muted" />
+                        <FolderIcon 
+                          className="text-yellow-500"
+                          openIcon={<FolderOpenIcon className="w-5 h-5" />}
+                          closedIcon={<FolderClosedIcon className="w-5 h-5" />}
+                        />
+                        <FileLabel className="font-medium text-text flex-1 text-left">{project.name}</FileLabel>
+                        <span className="text-xs text-muted">
+                          {project.vibes.length} vibe{project.vibes.length !== 1 ? 's' : ''}
+                        </span>
+                      </FolderTrigger>
+                    </FileHighlight>
+                  </FolderHeader>
 
-              {/* Vibes */}
-              {expandedProjects.has(project.id) && (
-                <div className="bg-surface/50">
-                  {project.vibes.length === 0 ? (
-                    <div className="pl-10 pr-3 py-2 text-sm text-muted italic">
-                      No vibes in this project
-                    </div>
-                  ) : (
-                    project.vibes.map(vibe => (
-                      <div key={vibe.id}>
-                        {/* Vibe Row */}
-                        <div
-                          className="flex items-center gap-2 pl-8 pr-3 py-2 hover:bg-surface-light cursor-pointer"
-                          onClick={() => toggleVibe(vibe.id)}
-                        >
-                          <ChevronIcon expanded={expandedVibes.has(vibe.id)} className="w-4 h-4 text-muted" />
-                          {expandedVibes.has(vibe.id) ? (
-                            <FolderOpenIcon className="w-5 h-5 text-blue-400" />
-                          ) : (
-                            <FolderIcon className="w-5 h-5 text-blue-400" />
-                          )}
-                          <span className="text-text">{vibe.name}</span>
-                          <span className="text-xs text-muted ml-auto">
-                            {vibe.cuts.length} cut{vibe.cuts.length !== 1 ? 's' : ''}
-                          </span>
+                  {/* Vibes */}
+                  <FolderContent className="border-t border-border/50">
+                    <div className="bg-surface/30">
+                      {project.vibes.length === 0 ? (
+                        <div className="pl-10 pr-3 py-2 text-sm text-muted italic">
+                          No vibes in this project
                         </div>
+                      ) : (
+                        project.vibes.map(vibe => (
+                          <FolderItem key={vibe.id} id={`vibe-${vibe.id}`}>
+                            {/* Vibe Row */}
+                            <FolderHeader>
+                              <FileHighlight>
+                                <FolderTrigger className="gap-2 pl-8 pr-3 py-2 hover:bg-surface-light/50 w-full transition-colors">
+                                  <ChevronIcon className="text-muted" />
+                                  <FolderIcon 
+                                    className="text-blue-400"
+                                    openIcon={<FolderOpenIcon className="w-5 h-5" />}
+                                    closedIcon={<FolderClosedIcon className="w-5 h-5" />}
+                                  />
+                                  <FileLabel className="text-text flex-1 text-left">{vibe.name}</FileLabel>
+                                  <span className="text-xs text-muted">
+                                    {vibe.cuts.length} cut{vibe.cuts.length !== 1 ? 's' : ''}
+                                  </span>
+                                </FolderTrigger>
+                              </FileHighlight>
+                            </FolderHeader>
 
-                        {/* Cuts */}
-                        {expandedVibes.has(vibe.id) && (
-                          <div>
-                            {vibe.cuts.length === 0 ? (
-                              <div className="pl-16 pr-3 py-2 text-sm text-muted italic">
-                                No cuts in this vibe
-                              </div>
-                            ) : (
-                              vibe.cuts.map(cut => (
-                                <div key={cut.id}>
-                                  {/* Cut Row */}
-                                  <div
-                                    className="flex items-center gap-2 pl-14 pr-3 py-2 hover:bg-surface-light cursor-pointer"
-                                    onClick={() => toggleCut(cut.id)}
-                                  >
-                                    <ChevronIcon expanded={expandedCuts.has(cut.id)} className="w-4 h-4 text-muted" />
-                                    {expandedCuts.has(cut.id) ? (
-                                      <FolderOpenIcon className="w-5 h-5 text-primary" />
-                                    ) : (
-                                      <FolderIcon className="w-5 h-5 text-primary" />
-                                    )}
-                                    <span className="text-text">{cut.name}</span>
-                                    <span className="text-xs text-muted">
-                                      {cut.files.length} file{cut.files.length !== 1 ? 's' : ''}
-                                    </span>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); handleUploadToCut(cut.id); }}
-                                      className="ml-auto p-1 text-muted hover:text-primary hover:bg-primary/10 rounded transition-colors"
-                                      title="Upload to this cut"
-                                    >
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                      </svg>
-                                    </button>
+                            {/* Cuts */}
+                            <FolderContent>
+                              <div>
+                                {vibe.cuts.length === 0 ? (
+                                  <div className="pl-16 pr-3 py-2 text-sm text-muted italic">
+                                    No cuts in this vibe
                                   </div>
+                                ) : (
+                                  vibe.cuts.map(cut => (
+                                    <FolderItem key={cut.id} id={`cut-${cut.id}`}>
+                                     {/* Cut Row */}
+                                     <div className="flex items-center">
+                                       <FileHighlight className="flex-1">
+                                         <div>
+                                           <FolderTrigger className="gap-2 pl-14 pr-3 py-2 hover:bg-surface-light/50 w-full transition-colors">
+                                             <ChevronIcon className="text-muted" />
+                                             <FolderIcon 
+                                               className="text-primary"
+                                               openIcon={<FolderOpenIcon className="w-5 h-5" />}
+                                               closedIcon={<FolderClosedIcon className="w-5 h-5" />}
+                                             />
+                                             <FileLabel className="text-text flex-1 text-left">{cut.name}</FileLabel>
+                                             <span className="text-xs text-muted">
+                                               {cut.files.length} file{cut.files.length !== 1 ? 's' : ''}
+                                             </span>
+                                           </FolderTrigger>
+                                         </div>
+                                       </FileHighlight>
+                                       <button
+                                         onClick={(e) => { e.stopPropagation(); handleUploadToCut(cut.id); }}
+                                         className="p-1 text-muted hover:text-primary hover:bg-primary/10 rounded transition-colors mr-3"
+                                         title="Upload to this cut"
+                                       >
+                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                         </svg>
+                                       </button>
+                                     </div>
 
-                                  {/* Files */}
-                                  {expandedCuts.has(cut.id) && (
-                                    <div className="bg-background/50">
-                                      {cut.files.length === 0 ? (
-                                        <div className="pl-20 pr-3 py-2 text-sm text-muted italic flex items-center gap-2">
-                                          <span>No files yet</span>
-                                          <button
-                                            onClick={() => handleUploadToCut(cut.id)}
-                                            className="text-primary hover:underline"
-                                          >
-                                            Upload one
-                                          </button>
-                                        </div>
-                                      ) : (
-                                        cut.files.map(file => (
-                                          <div
-                                            key={file.id}
-                                            className={`flex items-center gap-2 pl-20 pr-3 py-2 hover:bg-surface-light group cursor-pointer ${
-                                              playingContext?.file.id === file.id ? 'bg-primary/5' : ''
-                                            }`}
-                                            onClick={() => {
-                                              if (file.type === 'CUT') {
-                                                handlePlayFile(file, vibe.name, vibe.image, project.name, project.image);
-                                              }
-                                            }}
-                                          >
-                                            {file.type === 'CUT' ? (
+                                      {/* Files */}
+                                      <FolderContent>
+                                        <div className="bg-background/30">
+                                          {cut.files.length === 0 ? (
+                                            <div className="pl-20 pr-3 py-2 text-sm text-muted italic flex items-center gap-2">
+                                              <span>No files yet</span>
                                               <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handlePlayFile(file, vibe.name, vibe.image, project.name, project.image);
-                                                }}
-                                                className={`flex-shrink-0 transition-colors ${
-                                                  playingContext?.file.id === file.id
-                                                    ? 'text-primary'
-                                                    : 'text-muted hover:text-primary'
-                                                }`}
-                                                title="Play"
+                                                onClick={() => handleUploadToCut(cut.id)}
+                                                className="text-primary hover:underline"
                                               >
-                                                <PlayCircleIcon className="w-5 h-5" />
-                                              </button>
-                                            ) : (
-                                              <ZipIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                                            )}
-                                            <span className="text-sm text-text truncate" title={file.originalName}>
-                                              {file.name || file.originalName}
-                                            </span>
-                                            <span className="text-xs text-muted flex-shrink-0">
-                                              {formatFileSize(file.fileSize)}
-                                            </span>
-                                            <span className={`text-xs px-1.5 py-0.5 rounded flex-shrink-0 ${
-                                              file.type === 'CUT' 
-                                                ? 'bg-primary/20 text-primary' 
-                                                : 'bg-blue-500/20 text-blue-400'
-                                            }`}>
-                                              {file.type}
-                                            </span>
-                                            
-                                            {/* File Actions */}
-                                            <div className="flex items-center gap-1 ml-auto">
-                                              <button
-                                                onClick={() => handleDownload(file)}
-                                                className="p-1 text-muted hover:text-primary hover:bg-primary/10 rounded"
-                                                title="Download"
-                                              >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                                </svg>
-                                              </button>
-                                              <button
-                                                onClick={() => handleEdit(file)}
-                                                className="p-1 text-muted hover:text-primary hover:bg-primary/10 rounded"
-                                                title="Edit"
-                                              >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                </svg>
-                                              </button>
-                                              <button
-                                                onClick={() => setDeletingFile(file)}
-                                                className="p-1 text-muted hover:text-error hover:bg-error/10 rounded"
-                                                title="Delete"
-                                              >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
+                                                Upload one
                                               </button>
                                             </div>
-                                          </div>
-                                        ))
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+                                          ) : (
+                                            cut.files.map(file => (
+                                              <FileHighlight key={file.id}>
+                                                <FileItem
+                                                  className={`gap-2 pl-20 pr-3 py-2 hover:bg-surface-light/50 group cursor-pointer transition-colors ${
+                                                    playingContext?.file.id === file.id ? 'bg-primary/5' : ''
+                                                  }`}
+                                                  onClick={() => {
+                                                    if (file.type === 'CUT') {
+                                                      handlePlayFile(file, vibe.name, vibe.image, project.name, project.image);
+                                                    }
+                                                  }}
+                                                >
+                                                  {file.type === 'CUT' ? (
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handlePlayFile(file, vibe.name, vibe.image, project.name, project.image);
+                                                      }}
+                                                      className={`flex-shrink-0 transition-colors ${
+                                                        playingContext?.file.id === file.id
+                                                          ? 'text-primary'
+                                                          : 'text-muted hover:text-primary'
+                                                      }`}
+                                                      title="Play"
+                                                    >
+                                                      <PlayCircleIcon className="w-5 h-5" />
+                                                    </button>
+                                                  ) : (
+                                                    <FileIcon>
+                                                      <ZipIcon className="w-4 h-4 text-blue-400" />
+                                                    </FileIcon>
+                                                  )}
+                                                  <FileLabel className="text-sm text-text flex-1" title={file.originalName}>
+                                                    {file.name || file.originalName}
+                                                  </FileLabel>
+                                                  <span className="text-xs text-muted flex-shrink-0">
+                                                    {formatFileSize(file.fileSize)}
+                                                  </span>
+                                                  <span className={`text-xs px-1.5 py-0.5 rounded flex-shrink-0 ${
+                                                    file.type === 'CUT' 
+                                                      ? 'bg-primary/20 text-primary' 
+                                                      : 'bg-blue-500/20 text-blue-400'
+                                                  }`}>
+                                                    {file.type}
+                                                  </span>
+                                                  
+                                                  {/* File Actions */}
+                                                  <div className="flex items-center gap-1">
+                                                    <button
+                                                      onClick={(e) => { e.stopPropagation(); handleDownload(file); }}
+                                                      className="p-1 text-muted hover:text-primary hover:bg-primary/10 rounded transition-colors"
+                                                      title="Download"
+                                                    >
+                                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                      </svg>
+                                                    </button>
+                                                    <button
+                                                      onClick={(e) => { e.stopPropagation(); handleEdit(file); }}
+                                                      className="p-1 text-muted hover:text-primary hover:bg-primary/10 rounded transition-colors"
+                                                      title="Edit"
+                                                    >
+                                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                      </svg>
+                                                    </button>
+                                                    <button
+                                                      onClick={(e) => { e.stopPropagation(); setDeletingFile(file); }}
+                                                      className="p-1 text-muted hover:text-error hover:bg-error/10 rounded transition-colors"
+                                                      title="Delete"
+                                                    >
+                                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                      </svg>
+                                                    </button>
+                                                  </div>
+                                                </FileItem>
+                                              </FileHighlight>
+                                            ))
+                                          )}
+                                        </div>
+                                      </FolderContent>
+                                    </FolderItem>
+                                  ))
+                                )}
+                              </div>
+                            </FolderContent>
+                          </FolderItem>
+                        ))
+                      )}
+                    </div>
+                  </FolderContent>
+                </FolderItem>
+              ))}
+            </FilesHighlight>
+          </FileTree>
         </Card>
       )}
 

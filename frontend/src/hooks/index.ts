@@ -6,3 +6,5 @@ export type {
   MediaSessionPositionState,
   UseMediaSessionOptions,
 } from './useMediaSession';
+export { useControlledState } from './useControlledState';
+export { useAutoHeight } from './useAutoHeight';

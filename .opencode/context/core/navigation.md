@@ -5,6 +5,7 @@
 | Category | File | Purpose | Dependencies |
 |----------|------|---------|-------------|
 | Code Quality | standards/code-quality.md | Frontend/backend coding standards | - |
+| UI Components | standards/ui-components.md | shadcn/ui component standards & MCP usage | code-quality.md |
 | Documentation | standards/documentation.md | Documentation practices | code-quality.md |
 | Testing | standards/test-coverage.md | Testing frameworks and coverage | code-quality.md |
 | Code Review | standards/workflows/code-review.md | PR review process | test-coverage.md, documentation.md |
@@ -20,6 +21,7 @@
 
 ```
 code-quality.md
+├── ui-components.md
 ├── documentation.md
 ├── test-coverage.md
 └── workflows/
