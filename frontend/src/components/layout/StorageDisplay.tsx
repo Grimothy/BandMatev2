@@ -7,7 +7,7 @@ export function StorageDisplay() {
   if (!storage) return null;
 
   return (
-    <div className="border-t border-border p-4 mt-auto hidden lg:block">
+    <div className="border-t border-border p-4 mt-auto">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-medium text-muted uppercase tracking-wider">
           Storage

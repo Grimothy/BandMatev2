@@ -27,11 +27,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [storage, setStorage] = useState<UserStorage | null>(null);
 
   const refreshStorage = useCallback(async () => {
+    console.log('[AuthContext] refreshStorage called');
     try {
       const storageData = await getUserStorage();
+      console.log('[AuthContext] storage data received:', storageData);
       setStorage(storageData);
     } catch (error) {
-      console.error('Failed to fetch storage:', error);
+      console.error('[AuthContext] Failed to fetch storage:', error);
     }
   }, []);
 
@@ -50,20 +52,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initAuth = async () => {
+      console.log('[AuthContext] initAuth starting');
       setIsLoading(true);
       await refreshUser();
+      console.log('[AuthContext] refreshUser complete, calling refreshStorage');
+      // Fetch storage after user is loaded
+      refreshStorage();
       setIsLoading(false);
     };
     initAuth();
-  }, [refreshUser]);
+  }, [refreshUser, refreshStorage]);
 
   // Fetch storage after user is authenticated
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       refreshStorage();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, refreshStorage]);
 
   const login = async (email: string, password: string) => {
     const response = await apiLogin(email, password);
