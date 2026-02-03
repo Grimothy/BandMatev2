@@ -76,6 +76,7 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
 
       wavesurfer.on('ready', () => {
         const dur = wavesurfer.getDuration();
+        console.debug('[Waveform] ready', { duration: dur, src: audioUrl });
         setDuration(dur);
         onReady?.(dur);
       });
@@ -84,9 +85,18 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
         setCurrentTime(wavesurfer.getCurrentTime());
       });
 
-      wavesurfer.on('play', () => setIsPlaying(true));
-      wavesurfer.on('pause', () => setIsPlaying(false));
-      wavesurfer.on('finish', () => setIsPlaying(false));
+      wavesurfer.on('play', () => {
+        console.debug('[Waveform] play');
+        setIsPlaying(true);
+      });
+      wavesurfer.on('pause', () => {
+        console.debug('[Waveform] pause');
+        setIsPlaying(false);
+      });
+      wavesurfer.on('finish', () => {
+        console.debug('[Waveform] finish');
+        setIsPlaying(false);
+      });
 
       wavesurfer.on('click', () => {
         const time = wavesurfer.getCurrentTime();
@@ -101,6 +111,7 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
       // Handle visibility change to pause on page hide
       const handleVisibilityChange = () => {
         if (document.hidden && wavesurferRef.current?.isPlaying()) {
+          console.debug('[Waveform] page hidden — pausing');
           wavesurferRef.current.pause();
         }
       };
@@ -120,7 +131,43 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
       return () => {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         document.removeEventListener('keydown', handleKeyDown);
-        wavesurfer.destroy();
+
+        // Ensure playback is stopped and resources are released
+        try {
+          console.debug('[Waveform] unmount: stopping and destroying WaveSurfer', audioUrl);
+
+          if (wavesurfer.isPlaying()) {
+            try {
+              wavesurfer.pause();
+            } catch (err) {
+              console.warn('[Waveform] error pausing before destroy', err);
+            }
+          }
+
+          try {
+            // Clear buffer and visuals
+            wavesurfer.empty();
+          } catch (err) {
+            // ignore if not available
+          }
+
+          // Attempt to close the underlying AudioContext if present
+          try {
+            const backend: any = (wavesurfer as any).backend;
+            const audioCtx = backend?.getAudioContext ? backend.getAudioContext() : backend?.audioContext;
+            if (audioCtx && typeof audioCtx.close === 'function') {
+              audioCtx.close().catch((err: any) => {
+                console.warn('[Waveform] error closing AudioContext', err);
+              });
+            }
+          } catch (err) {
+            console.warn('[Waveform] error during audio context cleanup', err);
+          }
+
+          wavesurfer.destroy();
+        } catch (err) {
+          console.warn('[Waveform] error destroying WaveSurfer', err);
+        }
       };
     }, [audioUrl]);
 
