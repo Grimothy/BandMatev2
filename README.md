@@ -10,6 +10,16 @@
 
 ---
 
+## 📱 Mobile Apps
+
+Interested in creating Android or iOS apps? Check out our [Mobile App Development Guide](docs/MOBILE_APP_GUIDE.md) for detailed instructions on:
+- Progressive Web App (PWA) approach
+- Capacitor/Ionic approach (recommended)
+- React Native approach
+- Native development
+
+---
+
 ## Features
 
 - **Real-time Collaboration** - Work on projects simultaneously with your bandmates via WebSockets
@@ -157,6 +167,13 @@ volumes:
 **Frontend:** React, TypeScript, Vite, Tailwind CSS, Radix UI, Socket.io, Wavesurfer.js
 
 **Backend:** Node.js, Express, TypeScript, Prisma (SQLite), Socket.io, JWT auth
+
+---
+
+## Documentation
+
+- [Mobile App Development Guide](docs/MOBILE_APP_GUIDE.md) - Create Android/iOS apps
+- [Docker Releases](docs/DOCKER_RELEASES.md) - Container deployment guide
 
 ---
 
