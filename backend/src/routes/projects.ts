@@ -7,6 +7,7 @@ import { createProjectFolder, deleteProjectFolder } from '../services/folders';
 import { generateUniqueSlug } from '../utils/slug';
 import { createNotification } from '../services/notifications';
 import { createActivity } from '../services/activities';
+import { addUserToProjectRoom, removeUserFromProjectRoom, addAdminsToProjectRoom } from '../services/socket';
 import path from 'path';
 
 const router = Router();
@@ -175,6 +176,10 @@ router.post('/', adminMiddleware, async (req: AuthRequest, res: Response) => {
       },
       resourceLink: `/projects/${slug}`,
     });
+
+    // Add creator and admins to project socket room for real-time updates
+    addUserToProjectRoom(req.user!.id, project.id);
+    await addAdminsToProjectRoom(project.id);
 
     res.status(201).json(project);
   } catch (error) {
@@ -389,6 +394,9 @@ router.post('/:id/members', adminMiddleware, async (req: AuthRequest, res: Respo
       resourceLink: `/projects/${project.slug}`,
     });
 
+    // Add new member to project socket room for real-time updates
+    addUserToProjectRoom(userId, projectId);
+
     res.status(201).json(member);
   } catch (error) {
     console.error('Add member error:', error);
@@ -418,6 +426,9 @@ router.delete('/:id/members/:userId', adminMiddleware, async (req: AuthRequest, 
     await prisma.projectMember.delete({
       where: { id: member.id },
     });
+
+    // Remove member from project socket room
+    removeUserFromProjectRoom(userId, projectId);
 
     res.json({ message: 'Member removed successfully' });
   } catch (error) {

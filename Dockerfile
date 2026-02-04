@@ -8,17 +8,27 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-# Stage 2: Build Backend
-FROM node:20-slim AS backend-builder
+# Stage 2: Test Backend
+FROM node:20-slim AS backend-test
 WORKDIR /app/backend
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY backend/package*.json ./
+# Install ALL dependencies for testing
 RUN npm ci
 COPY backend/ ./
 RUN npx prisma generate
+# Create test database directory
+RUN mkdir -p /app/data
+# Run tests - if they fail, the build will fail here
+RUN npm test
+
+# Stage 3: Build Backend (only runs if tests pass)
+FROM backend-test AS backend-builder
+# Tests have already been run in the backend-test stage
+# Now just build the production code
 RUN npm run build
 
-# Stage 3: Production
+# Stage 4: Production
 FROM node:20-slim AS production
 WORKDIR /app
 

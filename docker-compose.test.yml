@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: bandmate-test
+    environment:
+      - NODE_ENV=test
+      - DATABASE_URL=file:/app/data/test.db
+      - JWT_SECRET=test-jwt-secret-for-docker
+      - EMAIL_FROM=test@bandmate.local
+      - EMAIL_SMTP_HOST=localhost
+      - EMAIL_SMTP_PORT=587
+      - EMAIL_SMTP_USER=
+      - EMAIL_SMTP_PASS=
+    ports:
+      - "3001:3000"
+    command: npm run test

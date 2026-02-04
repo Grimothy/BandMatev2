@@ -353,7 +353,7 @@ const prepareFileUpload = async (req: AuthRequest, res: Response, next: Function
         vibe: {
           include: {
             project: {
-              select: { slug: true },
+              select: { id: true, slug: true, name: true },
             },
           },
         },

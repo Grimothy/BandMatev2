@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
+import { addUserToProjectRoom } from './socket';
 
 const prisma = new PrismaClient();
 
@@ -169,6 +170,9 @@ export async function acceptInvitation(
           },
           update: {},
         });
+        
+        // Add user to project socket room for real-time updates
+        addUserToProjectRoom(userId, projectId);
       }
     }
   }

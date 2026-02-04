@@ -203,19 +203,22 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const token = localStorage.getItem('accessToken');
-    if (!token) return;
-
     // Avoid reconnecting if already connected with same user
     if (socket?.connected) {
       return;
     }
 
+    // Get token from localStorage if available (for regular login)
+    // OAuth users may not have token in localStorage - they use httpOnly cookies
+    const token = localStorage.getItem('accessToken');
+
     // Create socket connection
     const socketUrl = getSocketUrl();
     const newSocket = io(socketUrl, {
-      auth: { token },
+      // Pass token if available, otherwise socket.io will use cookies via withCredentials
+      auth: token ? { token } : {},
       transports: ['websocket', 'polling'],
+      withCredentials: true, // Enable sending cookies for OAuth users
     });
 
     newSocket.on('connect', () => {

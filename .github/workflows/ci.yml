@@ -63,40 +63,27 @@ jobs:
         run: npm run build
 
   test-backend:
-    name: Backend Tests
+    name: Backend Tests (Docker)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test image
+        uses: docker/build-push-action@v5
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
-      
-      - name: Install dependencies
-        working-directory: backend
-        run: npm ci
-      
-      - name: Generate Prisma Client
-        working-directory: backend
-        run: npx prisma generate
-      
-      - name: Setup test database
-        working-directory: backend
-        run: npx prisma db push
-        env:
-          DATABASE_URL: file:./test.db
-      
-      - name: Run tests
-        working-directory: backend
-        run: npm test
-        env:
-          DATABASE_URL: file:./test.db
-          JWT_ACCESS_SECRET: test-access-secret
-          JWT_REFRESH_SECRET: test-refresh-secret
-          NODE_ENV: test
+          context: .
+          file: ./Dockerfile.test
+          push: false
+          tags: bandmate:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run comprehensive tests
+        run: |
+          docker run --rm bandmate:test
 
   docker-build:
     name: Docker Build
