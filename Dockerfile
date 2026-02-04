@@ -16,6 +16,10 @@ COPY backend/package*.json ./
 # Install ALL dependencies for testing
 RUN npm ci
 COPY backend/ ./
+# Create data directory for SQLite
+RUN mkdir -p /app/data
+# Set DATABASE_URL for tests
+ENV DATABASE_URL="file:/app/data/test.db"
 RUN npx prisma generate
 # Run tests - if they fail, the build will fail here
 # RUN npm test
