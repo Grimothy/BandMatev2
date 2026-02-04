@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { StorageDisplay } from './StorageDisplay';
+import { ActivityFeed } from './ActivityFeed';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -115,6 +116,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </svg>
           </button>
         </div>
+
+        {/* Activity Feed */}
+        <ActivityFeed />
 
         {/* Navigation */}
         <nav className="p-4 space-y-1">
