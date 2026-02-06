@@ -1,33 +1,17 @@
 import { Router, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { uploadImage, deleteFile } from '../services/upload';
 import { createVibeFolder, deleteVibeFolder } from '../services/folders';
 import { generateUniqueSlug } from '../utils/slug';
 import { createActivity } from '../services/activities';
+import { checkProjectAccess } from '../services/access';
+import prisma from '../lib/prisma';
 import path from 'path';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // All routes require authentication
 router.use(authMiddleware);
-
-// Helper to check project access
-async function checkProjectAccess(userId: string, userRole: string, projectId: string): Promise<boolean> {
-  if (userRole === 'ADMIN') return true;
-  
-  const member = await prisma.projectMember.findUnique({
-    where: {
-      userId_projectId: {
-        userId,
-        projectId,
-      },
-    },
-  });
-  
-  return !!member;
-}
 
 // List vibes for a project
 router.get('/project/:projectId', async (req: AuthRequest, res: Response) => {

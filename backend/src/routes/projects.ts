@@ -1,5 +1,4 @@
 import { Router, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/admin';
 import { uploadImage, deleteFile } from '../services/upload';
@@ -8,10 +7,10 @@ import { generateUniqueSlug } from '../utils/slug';
 import { createNotification } from '../services/notifications';
 import { createActivity } from '../services/activities';
 import { addUserToProjectRoom, removeUserFromProjectRoom, addAdminsToProjectRoom } from '../services/socket';
+import prisma from '../lib/prisma';
 import path from 'path';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // All routes require authentication
 router.use(authMiddleware);

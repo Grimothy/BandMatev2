@@ -1,11 +1,9 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
 import { config } from '../config/env';
 import cookie from 'cookie';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma';
 
 let io: Server | null = null;
 

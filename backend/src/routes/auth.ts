@@ -1,5 +1,4 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { verifyPassword } from '../utils/password';
 import {
   generateAccessToken,
@@ -19,10 +18,11 @@ import {
   createGoogleUserWithInvitation,
 } from '../services/google-oauth';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { loginRateLimiter, authRateLimiter } from '../middleware/rateLimit';
 import { config } from '../config/env';
+import prisma from '../lib/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Cookie options - only use secure cookies when APP_URL is HTTPS
 const isHttps = config.email.appUrl.startsWith('https://');
@@ -33,8 +33,8 @@ const cookieOptions = {
   path: '/',
 };
 
-// Login
-router.post('/login', async (req: Request, res: Response) => {
+// Login - with rate limiting to prevent brute force attacks
+router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -102,8 +102,8 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 });
 
-// Refresh token
-router.post('/refresh', async (req: Request, res: Response) => {
+// Refresh token - with rate limiting
+router.post('/refresh', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
 

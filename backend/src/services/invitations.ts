@@ -1,9 +1,7 @@
-import { PrismaClient } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import { addUserToProjectRoom } from './socket';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma';
 
 const INVITATION_EXPIRY_DAYS = 7;
 

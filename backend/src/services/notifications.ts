@@ -1,8 +1,7 @@
-import { PrismaClient, Notification } from '@prisma/client';
+import { Notification } from '@prisma/client';
 import { emitToUser, isUserOnline } from './socket';
 import { sendNotificationEmail } from './email';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma';
 
 export type NotificationType = 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
 

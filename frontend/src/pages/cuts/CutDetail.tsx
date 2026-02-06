@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getCut, uploadAudio, deleteAudio, updateAudioLabel, addComment, deleteComment, addReply, updateComment, updateCut, deleteCut } from '../../api/cuts';
 import { uploadCut } from '../../api/files';
@@ -85,7 +85,7 @@ const getColorFromId = (id: string) => {
   return colors[Math.abs(hash) % colors.length];
 };
 
-function CommentItem({
+const CommentItem = memo(function CommentItem({
   comment,
   cut,
   user,
@@ -324,7 +324,7 @@ function CommentItem({
       )}
     </div>
   );
-}
+});
 
 export function CutDetail() {
   const { id } = useParams<{ id: string }>();
@@ -487,15 +487,15 @@ export function CutDetail() {
     }
   };
 
-  const handleStartReply = (commentId: string) => {
+  const handleStartReply = useCallback((commentId: string) => {
     setReplyingToId(commentId);
     setReplyText('');
-  };
+  }, []);
 
-  const handleCancelReply = () => {
+  const handleCancelReply = useCallback(() => {
     setReplyingToId(null);
     setReplyText('');
-  };
+  }, []);
 
   const handleSubmitReply = async (parentId: string) => {
     if (!replyText.trim() || !id) return;
@@ -513,15 +513,15 @@ export function CutDetail() {
     }
   };
 
-  const handleStartEditComment = (commentId: string, content: string) => {
+  const handleStartEditComment = useCallback((commentId: string, content: string) => {
     setEditingCommentId(commentId);
     setEditingCommentContent(content);
-  };
+  }, []);
 
-  const handleCancelEditComment = () => {
+  const handleCancelEditComment = useCallback(() => {
     setEditingCommentId(null);
     setEditingCommentContent('');
-  };
+  }, []);
 
   const handleSaveEditComment = async (commentId: string) => {
     if (!editingCommentContent.trim() || !id) return;
@@ -539,7 +539,7 @@ export function CutDetail() {
     }
   };
 
-  const handleCommentClick = (audioFileId: string, timestamp: number | null) => {
+  const handleCommentClick = useCallback((audioFileId: string, timestamp: number | null) => {
     if (timestamp === null) return;
     
     // Select the audio file
@@ -550,7 +550,7 @@ export function CutDetail() {
     if (waveform) {
       waveform.seekTo(timestamp);
     }
-  };
+  }, []);
 
   // Handler for lyrics seeking
   const handleLyricsSeek = (audioFileId: string, timestamp: number) => {
@@ -584,11 +584,11 @@ export function CutDetail() {
     setSelectedAudioFileId(audioFileId);
   };
 
-  const formatTime = (seconds: number) => {
+  const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, []);
 
   const getCommentsForAudio = (audioFileId: string) => {
     return cut?.comments?.filter(c => c.managedFileId === audioFileId) || [];

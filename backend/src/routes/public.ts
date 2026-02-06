@@ -1,10 +1,9 @@
 import { Router, Response, Request } from 'express';
 import path from 'path';
 import fs from 'fs';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Uploads root directory for path traversal protection
 const uploadsRoot = path.resolve('./uploads');

@@ -1,67 +1,17 @@
 import { Router, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { deleteFile, uploadCutAudio, getCutAudioFilePath } from '../services/upload';
 import { createCutFolder, deleteCutFolder } from '../services/folders';
 import { generateUniqueSlug } from '../utils/slug';
 import { createActivity } from '../services/activities';
+import { checkVibeAccess, checkCutAccess } from '../services/access';
+import prisma from '../lib/prisma';
 import path from 'path';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // All routes require authentication
 router.use(authMiddleware);
-
-// Helper to check project access via vibe
-async function checkVibeAccess(userId: string, userRole: string, vibeId: string): Promise<boolean> {
-  if (userRole === 'ADMIN') return true;
-  
-  const vibe = await prisma.vibe.findUnique({
-    where: { id: vibeId },
-    select: { projectId: true },
-  });
-  
-  if (!vibe) return false;
-  
-  const member = await prisma.projectMember.findUnique({
-    where: {
-      userId_projectId: {
-        userId,
-        projectId: vibe.projectId,
-      },
-    },
-  });
-  
-  return !!member;
-}
-
-// Helper to check project access via cut
-async function checkCutAccess(userId: string, userRole: string, cutId: string): Promise<boolean> {
-  if (userRole === 'ADMIN') return true;
-  
-  const cut = await prisma.cut.findUnique({
-    where: { id: cutId },
-    include: {
-      vibe: {
-        select: { projectId: true },
-      },
-    },
-  });
-  
-  if (!cut) return false;
-  
-  const member = await prisma.projectMember.findUnique({
-    where: {
-      userId_projectId: {
-        userId,
-        projectId: cut.vibe.projectId,
-      },
-    },
-  });
-  
-  return !!member;
-}
 
 // List cuts for a vibe
 router.get('/vibe/:vibeId', async (req: AuthRequest, res: Response) => {

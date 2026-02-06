@@ -1,13 +1,13 @@
 import { Router, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { deleteFile, uploadCutAudio, uploadCutStem, getCutAudioFilePath, getCutStemFilePath } from '../services/upload';
 import { createBulkNotifications } from '../services/notifications';
 import { createActivity } from '../services/activities';
+import { checkCutAccess, checkFileAccess } from '../services/access';
+import prisma from '../lib/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -124,64 +124,6 @@ router.get('/storage', async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Failed to get storage info' });
   }
 });
-
-// Helper to check project access via cut
-async function checkCutAccess(userId: string, userRole: string, cutId: string): Promise<boolean> {
-  if (userRole === 'ADMIN') return true;
-  
-  const cut = await prisma.cut.findUnique({
-    where: { id: cutId },
-    include: {
-      vibe: {
-        select: { projectId: true },
-      },
-    },
-  });
-  
-  if (!cut) return false;
-  
-  const member = await prisma.projectMember.findUnique({
-    where: {
-      userId_projectId: {
-        userId,
-        projectId: cut.vibe.projectId,
-      },
-    },
-  });
-  
-  return !!member;
-}
-
-// Helper to check project access via managed file
-async function checkFileAccess(userId: string, userRole: string, fileId: string): Promise<boolean> {
-  if (userRole === 'ADMIN') return true;
-  
-  const file = await prisma.managedFile.findUnique({
-    where: { id: fileId },
-    include: {
-      cut: {
-        include: {
-          vibe: {
-            select: { projectId: true },
-          },
-        },
-      },
-    },
-  });
-  
-  if (!file) return false;
-  
-  const member = await prisma.projectMember.findUnique({
-    where: {
-      userId_projectId: {
-        userId,
-        projectId: file.cut.vibe.projectId,
-      },
-    },
-  });
-  
-  return !!member;
-}
 
 // List all managed files with filtering and sorting
 router.get('/', async (req: AuthRequest, res: Response) => {

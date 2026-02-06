@@ -1,7 +1,6 @@
-import { PrismaClient, Activity } from '@prisma/client';
+import { Activity } from '@prisma/client';
 import { emitToProject } from './socket';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma';
 
 export type ActivityType = 
   | 'file_uploaded' 
