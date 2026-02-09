@@ -5,6 +5,9 @@ import {
   getUnreadCountForUser,
   markActivityAsRead,
   markAllActivitiesAsRead,
+  dismissActivity,
+  undismissActivity,
+  dismissAllActivities,
   ActivityType
 } from '../services/activities';
 
@@ -98,6 +101,60 @@ router.patch('/read-all', async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Error marking all activities as read:', error);
     res.status(500).json({ error: 'Failed to mark all activities as read' });
+  }
+});
+
+/**
+ * DELETE /api/activities/:id
+ * Dismiss (hide) an activity for the current user
+ */
+router.delete('/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const activityId = req.params.id;
+
+    await dismissActivity(activityId, userId);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error dismissing activity:', error);
+    res.status(500).json({ error: 'Failed to dismiss activity' });
+  }
+});
+
+/**
+ * PATCH /api/activities/:id/undismiss
+ * Undismiss (restore) an activity for the current user
+ */
+router.patch('/:id/undismiss', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const activityId = req.params.id;
+
+    await undismissActivity(activityId, userId);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error undismissing activity:', error);
+    res.status(500).json({ error: 'Failed to undismiss activity' });
+  }
+});
+
+/**
+ * DELETE /api/activities
+ * Dismiss all activities for the current user
+ */
+router.delete('/', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const isAdmin = req.user!.role === 'ADMIN';
+
+    const count = await dismissAllActivities(userId, isAdmin);
+    
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error dismissing all activities:', error);
+    res.status(500).json({ error: 'Failed to dismiss all activities' });
   }
 });
 

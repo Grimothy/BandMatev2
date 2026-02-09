@@ -142,6 +142,31 @@ export async function deleteCutFolder(projectSlug: string, vibeSlug: string, cut
   }
 }
 
+/**
+ * Moves a cut folder from one vibe to another within the same project
+ * Returns the new path prefix for updating file references
+ */
+export async function moveCutFolder(
+  projectSlug: string,
+  sourceVibeSlug: string,
+  targetVibeSlug: string,
+  cutSlug: string
+): Promise<{ oldPathPrefix: string; newPathPrefix: string }> {
+  const sourcePath = getCutPath(projectSlug, sourceVibeSlug, cutSlug);
+  const targetPath = getCutPath(projectSlug, targetVibeSlug, cutSlug);
+  
+  // Ensure target vibe directory exists
+  await ensureDirAsync(getVibePath(projectSlug, targetVibeSlug));
+  
+  // Move the folder
+  await fs.promises.rename(sourcePath, targetPath);
+  
+  return {
+    oldPathPrefix: `${projectSlug}/${sourceVibeSlug}/${cutSlug}`,
+    newPathPrefix: `${projectSlug}/${targetVibeSlug}/${cutSlug}`,
+  };
+}
+
 // ============================================
 // Initialize base directories
 // ============================================

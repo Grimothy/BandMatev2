@@ -2,7 +2,8 @@ import api from './client';
 
 export type ActivityType = 
   | 'file_uploaded' 
-  | 'cut_created' 
+  | 'cut_created'
+  | 'cut_moved' 
   | 'vibe_created' 
   | 'member_added' 
   | 'comment_added'
@@ -79,5 +80,27 @@ export async function markActivityAsRead(activityId: string): Promise<void> {
  */
 export async function markAllActivitiesAsRead(): Promise<number> {
   const response = await api.patch<{ success: boolean; count: number }>('/activities/read-all');
+  return response.data.count;
+}
+
+/**
+ * Dismiss an activity (hide from user's feed without deleting for others)
+ */
+export async function dismissActivity(activityId: string): Promise<void> {
+  await api.delete(`/activities/${activityId}`);
+}
+
+/**
+ * Undismiss an activity (restore to user's feed)
+ */
+export async function undismissActivity(activityId: string): Promise<void> {
+  await api.patch(`/activities/${activityId}/undismiss`);
+}
+
+/**
+ * Dismiss all activities
+ */
+export async function dismissAllActivities(): Promise<number> {
+  const response = await api.delete<{ success: boolean; count: number }>('/activities');
   return response.data.count;
 }

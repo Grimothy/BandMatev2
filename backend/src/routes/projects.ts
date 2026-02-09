@@ -173,7 +173,7 @@ router.post('/', adminMiddleware, async (req: AuthRequest, res: Response) => {
       metadata: {
         projectName: name,
       },
-      resourceLink: `/projects/${slug}`,
+      resourceLink: `/projects/${project.id}`,
     });
 
     // Add creator and admins to project socket room for real-time updates
@@ -377,7 +377,7 @@ router.post('/:id/members', adminMiddleware, async (req: AuthRequest, res: Respo
       type: 'SUCCESS',
       title: 'Added to Project',
       message: `You have been added to the project "${project.name}".`,
-      resourceLink: `/projects/${project.slug}`,
+      resourceLink: `/projects/${project.id}`,
       sendEmail: true, // Always send email for project invites
     });
 
@@ -390,7 +390,7 @@ router.post('/:id/members', adminMiddleware, async (req: AuthRequest, res: Respo
         memberName: member.user.name,
         projectName: project.name,
       },
-      resourceLink: `/projects/${project.slug}`,
+      resourceLink: `/projects/${project.id}`,
     });
 
     // Add new member to project socket room for real-time updates

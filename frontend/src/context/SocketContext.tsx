@@ -7,7 +7,10 @@ import {
   getActivities, 
   getUnreadActivityCount, 
   markActivityAsRead as apiMarkActivityAsRead,
-  markAllActivitiesAsRead as apiMarkAllActivitiesAsRead
+  markAllActivitiesAsRead as apiMarkAllActivitiesAsRead,
+  dismissActivity as apiDismissActivity,
+  undismissActivity as apiUndismissActivity,
+  dismissAllActivities as apiDismissAllActivities
 } from '../api/activities';
 
 export interface Notification {
@@ -36,6 +39,9 @@ interface SocketContextType {
   fetchActivities: () => Promise<void>;
   markActivityAsRead: (activityId: string) => Promise<void>;
   markAllActivitiesAsRead: () => Promise<void>;
+  dismissActivity: (activityId: string) => Promise<void>;
+  undismissActivity: (activityId: string) => Promise<void>;
+  dismissAllActivities: () => Promise<void>;
 }
 
 const SocketContext = createContext<SocketContextType | null>(null);
@@ -187,6 +193,78 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Dismiss an activity (hide from user's feed)
+  const dismissActivity = useCallback(async (activityId: string) => {
+    let originalActivities: Activity[] = [];
+    let wasUnread = false;
+
+    try {
+      // Find the activity before removing it (to support undo)
+      const activity = activities.find(a => a.id === activityId);
+      if (!activity) return;
+      
+      wasUnread = !activity.isRead;
+      originalActivities = [...activities];
+
+      // Optimistically remove from local state
+      setActivities((prev) => prev.filter((a) => a.id !== activityId));
+      if (wasUnread) {
+        setUnreadActivityCount((prev) => Math.max(0, prev - 1));
+      }
+      
+      // Show undo toast
+      toast.info('Activity dismissed', {
+        action: {
+          label: 'Undo',
+          onClick: () => undismissActivity(activityId),
+        },
+      });
+
+      // Call API
+      await apiDismissActivity(activityId);
+    } catch (error) {
+      console.error('Failed to dismiss activity:', error);
+      // Rollback on error
+      if (originalActivities.length > 0) {
+        setActivities(originalActivities);
+        if (wasUnread) {
+          setUnreadActivityCount((prev) => prev + 1);
+        }
+      } else {
+        fetchActivities();
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activities, fetchActivities]);
+
+  // Undismiss an activity (restore to feed)
+  const undismissActivity = useCallback(async (activityId: string) => {
+    try {
+      await apiUndismissActivity(activityId);
+      // We need to refetch to get the full activity object back in its correct position
+      await fetchActivities();
+      toast.success('Activity restored');
+    } catch (error) {
+      console.error('Failed to undismiss activity:', error);
+      toast.error('Failed to restore activity');
+    }
+  }, [fetchActivities]);
+
+  // Dismiss all activities
+  const dismissAllActivities = useCallback(async () => {
+    try {
+      const count = await apiDismissAllActivities();
+      if (count > 0) {
+        setActivities([]);
+        setUnreadActivityCount(0);
+        toast.success(`Dismissed ${count} activities`);
+      }
+    } catch (error) {
+      console.error('Failed to dismiss all activities:', error);
+      toast.error('Failed to dismiss activities');
+    }
+  }, []);
+
   // Initialize socket connection when authenticated
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -333,6 +411,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     fetchActivities,
     markActivityAsRead,
     markAllActivitiesAsRead,
+    dismissActivity,
+    undismissActivity,
+    dismissAllActivities,
   };
 
   return (

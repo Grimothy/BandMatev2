@@ -206,12 +206,13 @@ model Activity {
   @@index([userId])
 }
 
-// Track which activities have been read by which users
+// Track which activities have been read/dismissed by which users
 model ActivityRead {
   id         String   @id @default(uuid())
   activityId String
   userId     String
   readAt     DateTime @default(now())
+  dismissed  Boolean  @default(false)
 
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
 

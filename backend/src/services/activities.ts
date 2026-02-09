@@ -5,6 +5,7 @@ import prisma from '../lib/prisma';
 export type ActivityType = 
   | 'file_uploaded' 
   | 'cut_created' 
+  | 'cut_moved'
   | 'vibe_created' 
   | 'member_added' 
   | 'comment_added'
@@ -127,9 +128,11 @@ export async function getActivitiesForUser(
   const whereClause: {
     projectId: { in: string[] };
     type?: string;
-    reads?: { none: { userId: string } };
+    reads?: { none: { userId: string } } | { none: { userId: string; dismissed: boolean } };
   } = {
     projectId: { in: projectIds },
+    // Always exclude dismissed activities for this user
+    reads: { none: { userId, dismissed: true } },
   };
 
   if (type) {
@@ -137,23 +140,41 @@ export async function getActivitiesForUser(
   }
 
   if (unreadOnly) {
+    // For unread only, we need activities that have NO read record OR have a non-dismissed read record
+    // Since we're already excluding dismissed, we just need to check for no read record
     whereClause.reads = { none: { userId } };
   }
 
-  // Get total count
-  const total = await prisma.activity.count({ where: whereClause });
+  // Get total count (excluding dismissed)
+  const totalCount = await prisma.activity.count({ 
+    where: {
+      ...whereClause,
+      NOT: {
+        reads: { some: { userId, dismissed: true } },
+      },
+    },
+  });
 
-  // Get unread count (activities without a read record for this user)
+  // Get unread count (activities without a read record for this user, excluding dismissed)
   const unreadCount = await prisma.activity.count({
     where: {
       projectId: { in: projectIds },
       reads: { none: { userId } },
+      // Also exclude activities that have been dismissed
+      NOT: {
+        reads: { some: { userId, dismissed: true } },
+      },
     },
   });
 
-  // Fetch activities with read status
+  // Fetch activities with read status (excluding dismissed)
   const activities = await prisma.activity.findMany({
-    where: whereClause,
+    where: {
+      ...whereClause,
+      NOT: {
+        reads: { some: { userId, dismissed: true } },
+      },
+    },
     include: {
       user: {
         select: {
@@ -164,7 +185,7 @@ export async function getActivitiesForUser(
       },
       reads: {
         where: { userId },
-        select: { id: true },
+        select: { id: true, dismissed: true },
       },
     },
     orderBy: { createdAt: 'desc' },
@@ -175,13 +196,13 @@ export async function getActivitiesForUser(
   // Transform activities to include isRead boolean
   const activitiesWithReadStatus: ActivityWithUser[] = activities.map(activity => ({
     ...activity,
-    isRead: activity.reads.length > 0,
+    isRead: activity.reads.length > 0 && !activity.reads[0]?.dismissed,
     reads: undefined, // Remove the reads array from response
   })) as ActivityWithUser[];
 
   return {
     activities: activitiesWithReadStatus,
-    total,
+    total: totalCount,
     unreadCount,
   };
 }
@@ -196,19 +217,34 @@ export async function getActivitiesForProject(
 ): Promise<ActivitiesResponse> {
   const { limit = 20, offset = 0 } = options;
 
+  // Total count excludes dismissed for this user
   const total = await prisma.activity.count({
-    where: { projectId },
+    where: { 
+      projectId,
+      NOT: {
+        reads: { some: { userId, dismissed: true } },
+      },
+    },
   });
 
+  // Unread count excludes dismissed
   const unreadCount = await prisma.activity.count({
     where: {
       projectId,
       reads: { none: { userId } },
+      NOT: {
+        reads: { some: { userId, dismissed: true } },
+      },
     },
   });
 
   const activities = await prisma.activity.findMany({
-    where: { projectId },
+    where: { 
+      projectId,
+      NOT: {
+        reads: { some: { userId, dismissed: true } },
+      },
+    },
     include: {
       user: {
         select: {
@@ -219,7 +255,7 @@ export async function getActivitiesForProject(
       },
       reads: {
         where: { userId },
-        select: { id: true },
+        select: { id: true, dismissed: true },
       },
     },
     orderBy: { createdAt: 'desc' },
@@ -229,7 +265,7 @@ export async function getActivitiesForProject(
 
   const activitiesWithReadStatus: ActivityWithUser[] = activities.map(activity => ({
     ...activity,
-    isRead: activity.reads.length > 0,
+    isRead: activity.reads.length > 0 && !activity.reads[0]?.dismissed,
     reads: undefined,
   })) as ActivityWithUser[];
 
@@ -269,6 +305,10 @@ export async function getUnreadCountForUser(userId: string, isAdmin: boolean = f
     where: {
       projectId: { in: projectIds },
       reads: { none: { userId } },
+      // Also exclude activities that have been dismissed
+      NOT: {
+        reads: { some: { userId, dismissed: true } },
+      },
     },
   });
 }
@@ -372,4 +412,113 @@ export async function cleanupOldActivities(daysOld: number = 90): Promise<number
 
   console.log(`[Activity] Cleaned up ${result.count} old activities`);
   return result.count;
+}
+
+/**
+ * Dismiss a single activity for a user (hides it from their feed)
+ */
+export async function dismissActivity(
+  activityId: string,
+  userId: string
+): Promise<void> {
+  // Upsert to handle both new dismissals and already-read activities
+  await prisma.activityRead.upsert({
+    where: {
+      activityId_userId: {
+        activityId,
+        userId,
+      },
+    },
+    create: {
+      activityId,
+      userId,
+      dismissed: true,
+    },
+    update: {
+      dismissed: true,
+    },
+  });
+}
+
+/**
+ * Undismiss a single activity for a user (restores it to their feed)
+ */
+export async function undismissActivity(
+  activityId: string,
+  userId: string
+): Promise<void> {
+  await prisma.activityRead.update({
+    where: {
+      activityId_userId: {
+        activityId,
+        userId,
+      },
+    },
+    data: {
+      dismissed: false,
+    },
+  });
+}
+
+/**
+ * Dismiss all activities for a user
+ */
+export async function dismissAllActivities(userId: string, isAdmin: boolean = false): Promise<number> {
+  let projectIds: string[];
+
+  if (isAdmin) {
+    const allProjects = await prisma.project.findMany({
+      select: { id: true },
+    });
+    projectIds = allProjects.map(p => p.id);
+  } else {
+    const projectMembers = await prisma.projectMember.findMany({
+      where: { userId },
+      select: { projectId: true },
+    });
+    projectIds = projectMembers.map(pm => pm.projectId);
+  }
+
+  if (projectIds.length === 0) {
+    return 0;
+  }
+
+  // Find all activities that are NOT yet dismissed for this user
+  const activitiesToDismiss = await prisma.activity.findMany({
+    where: {
+      projectId: { in: projectIds },
+      NOT: {
+        reads: { some: { userId, dismissed: true } },
+      },
+    },
+    select: { id: true },
+  });
+
+  if (activitiesToDismiss.length === 0) {
+    return 0;
+  }
+
+  // Upsert read records with dismissed: true
+  await prisma.$transaction(
+    activitiesToDismiss.map(activity =>
+      prisma.activityRead.upsert({
+        where: {
+          activityId_userId: {
+            activityId: activity.id,
+            userId,
+          },
+        },
+        create: {
+          activityId: activity.id,
+          userId,
+          dismissed: true,
+        },
+        update: {
+          dismissed: true,
+        },
+      })
+    )
+  );
+
+  return activitiesToDismiss.length;
 }

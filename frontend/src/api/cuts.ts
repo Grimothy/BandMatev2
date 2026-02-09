@@ -87,3 +87,8 @@ export async function updateLyrics(cutId: string, lyrics: AudioLyrics[]): Promis
 export async function reorderCuts(vibeId: string, cutIds: string[]): Promise<void> {
   await api.put(`/cuts/vibe/${vibeId}/reorder`, { cutIds });
 }
+
+export async function moveCut(cutId: string, targetVibeId: string): Promise<Cut> {
+  const response = await api.patch<Cut>(`/cuts/${cutId}/move`, { targetVibeId });
+  return response.data;
+}

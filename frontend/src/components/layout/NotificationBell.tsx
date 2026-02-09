@@ -10,7 +10,9 @@ import {
   MessageSquare,
   FolderOpen,
   FileText,
-  Share2
+  Share2,
+  ArrowRightLeft,
+  X
 } from 'lucide-react';
 import { useSocket } from '../../context/SocketContext';
 import { Activity, ActivityType } from '../../api/activities';
@@ -34,6 +36,8 @@ function getActivityIcon(type: ActivityType) {
       return <FileAudio className={iconClass} />;
     case 'cut_created':
       return <Music className={iconClass} />;
+    case 'cut_moved':
+      return <ArrowRightLeft className={iconClass} />;
     case 'vibe_created':
       return <FolderPlus className={iconClass} />;
     case 'project_created':
@@ -59,6 +63,8 @@ function getActivityIconColor(type: ActivityType): string {
     case 'cut_created':
     case 'vibe_created':
       return 'text-purple-500';
+    case 'cut_moved':
+      return 'text-amber-500';
     case 'project_created':
       return 'text-green-500';
     case 'member_added':
@@ -80,6 +86,8 @@ function getActivityDescription(activity: Activity): string {
       return `uploaded ${metadata.fileName || 'a file'}`;
     case 'cut_created':
       return `created cut "${metadata.cutName || 'Untitled'}"`;
+    case 'cut_moved':
+      return `moved cut "${metadata.cutName || 'Untitled'}" to ${metadata.toVibeName || 'another vibe'}`;
     case 'vibe_created':
       return `created vibe "${metadata.vibeName || 'Untitled'}"`;
     case 'project_created':
@@ -98,7 +106,7 @@ function getActivityDescription(activity: Activity): string {
 }
 
 export function NotificationBell() {
-  const { activities, unreadActivityCount, markActivityAsRead, markAllActivitiesAsRead } = useSocket();
+  const { activities, unreadActivityCount, markActivityAsRead, markAllActivitiesAsRead, dismissActivity } = useSocket();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -122,6 +130,11 @@ export function NotificationBell() {
       navigate(activity.resourceLink);
       setIsOpen(false);
     }
+  };
+
+  const handleDismiss = async (e: React.MouseEvent, activityId: string) => {
+    e.stopPropagation();
+    await dismissActivity(activityId);
   };
 
   // Show first 10 activities in the dropdown
@@ -199,6 +212,23 @@ export function NotificationBell() {
                         <p className="text-xs text-muted mt-0.5">
                           {formatTimeAgo(activity.createdAt)}
                         </p>
+                      </div>
+
+                      {/* Dismiss button */}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => handleDismiss(e, activity.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleDismiss(e as unknown as React.MouseEvent, activity.id);
+                          }
+                        }}
+                        className="p-1 rounded hover:bg-surface-light transition-all flex-shrink-0"
+                        title="Dismiss"
+                      >
+                        <X className="w-4 h-4 text-muted hover:text-error" />
                       </div>
                     </div>
                   </button>

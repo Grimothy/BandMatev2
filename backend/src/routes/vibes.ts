@@ -174,7 +174,7 @@ router.post('/project/:projectId', async (req: AuthRequest, res: Response) => {
         vibeName: name,
         projectName: project.name,
       },
-      resourceLink: `/projects/${project.slug}/vibes/${slug}`,
+      resourceLink: `/projects/${project.id}`,
     });
 
     res.status(201).json(vibe);

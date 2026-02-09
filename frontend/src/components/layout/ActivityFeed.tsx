@@ -8,7 +8,8 @@ import {
   FolderOpen,
   FileText,
   Share2,
-  ArrowRight
+  ArrowRight,
+  ArrowRightLeft
 } from 'lucide-react';
 import { Activity, ActivityType } from '../../api/activities';
 import { useSocket } from '../../context/SocketContext';
@@ -32,6 +33,8 @@ function getActivityIcon(type: ActivityType) {
       return <FileAudio className={iconClass} />;
     case 'cut_created':
       return <Music className={iconClass} />;
+    case 'cut_moved':
+      return <ArrowRightLeft className={iconClass} />;
     case 'vibe_created':
       return <FolderPlus className={iconClass} />;
     case 'project_created':
@@ -57,6 +60,8 @@ function getActivityDescription(activity: Activity): string {
       return `uploaded ${metadata.fileName || 'a file'}`;
     case 'cut_created':
       return `created cut "${metadata.cutName || 'Untitled'}"`;
+    case 'cut_moved':
+      return `moved cut "${metadata.cutName || 'Untitled'}" to ${metadata.toVibeName || 'another vibe'}`;
     case 'vibe_created':
       return `created vibe "${metadata.vibeName || 'Untitled'}"`;
     case 'project_created':

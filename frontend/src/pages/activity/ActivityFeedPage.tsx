@@ -11,14 +11,18 @@ import {
   Share2,
   Check,
   Filter,
-  ChevronDown
+  ChevronDown,
+  ArrowRightLeft,
+  X,
+  Trash2
 } from 'lucide-react';
 import { 
   Activity, 
   ActivityType, 
   getActivities, 
   markActivityAsRead, 
-  markAllActivitiesAsRead 
+  markAllActivitiesAsRead,
+  dismissActivity 
 } from '../../api/activities';
 import { getProjects } from '../../api/projects';
 import { Project } from '../../types';
@@ -30,6 +34,7 @@ const ACTIVITY_TYPES: { value: ActivityType | ''; label: string }[] = [
   { value: '', label: 'All Types' },
   { value: 'file_uploaded', label: 'Files Uploaded' },
   { value: 'cut_created', label: 'Cuts Created' },
+  { value: 'cut_moved', label: 'Cuts Moved' },
   { value: 'vibe_created', label: 'Vibes Created' },
   { value: 'project_created', label: 'Projects Created' },
   { value: 'member_added', label: 'Members Added' },
@@ -62,6 +67,8 @@ function getActivityIcon(type: ActivityType) {
       return <FileAudio className={iconClass} />;
     case 'cut_created':
       return <Music className={iconClass} />;
+    case 'cut_moved':
+      return <ArrowRightLeft className={iconClass} />;
     case 'vibe_created':
       return <FolderPlus className={iconClass} />;
     case 'project_created':
@@ -85,6 +92,8 @@ function getActivityIconBgColor(type: ActivityType): string {
       return 'bg-blue-500/10 text-blue-400';
     case 'cut_created':
       return 'bg-purple-500/10 text-purple-400';
+    case 'cut_moved':
+      return 'bg-amber-500/10 text-amber-400';
     case 'vibe_created':
       return 'bg-green-500/10 text-green-400';
     case 'project_created':
@@ -110,6 +119,8 @@ function getActivityDescription(activity: Activity): React.ReactNode {
       return <>uploaded <span className="font-medium text-text">{metadata.fileName || 'a file'}</span> to {metadata.cutName}</>;
     case 'cut_created':
       return <>created cut <span className="font-medium text-text">"{metadata.cutName || 'Untitled'}"</span></>;
+    case 'cut_moved':
+      return <>moved cut <span className="font-medium text-text">"{metadata.cutName || 'Untitled'}"</span> from {metadata.fromVibeName} to <span className="font-medium text-text">{metadata.toVibeName}</span></>;
     case 'vibe_created':
       return <>created vibe <span className="font-medium text-text">"{metadata.vibeName || 'Untitled'}"</span></>;
     case 'project_created':
@@ -130,9 +141,10 @@ function getActivityDescription(activity: Activity): React.ReactNode {
 interface ActivityItemProps {
   activity: Activity;
   onMarkAsRead: (id: string) => void;
+  onDismiss: (id: string) => void;
 }
 
-function ActivityItem({ activity, onMarkAsRead }: ActivityItemProps) {
+function ActivityItem({ activity, onMarkAsRead, onDismiss }: ActivityItemProps) {
   const navigate = useNavigate();
   const description = getActivityDescription(activity);
   const icon = getActivityIcon(activity.type);
@@ -194,12 +206,28 @@ function ActivityItem({ activity, onMarkAsRead }: ActivityItemProps) {
           <Check className="w-4 h-4 text-muted" />
         </button>
       )}
+
+      {/* Dismiss button */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onDismiss(activity.id);
+        }}
+        className="p-1 rounded hover:bg-surface-light transition-all"
+        title="Dismiss"
+      >
+        <X className="w-4 h-4 text-muted hover:text-error" />
+      </button>
     </div>
   );
 }
 
 export function ActivityFeedPage() {
-  const { fetchActivities: refreshContext } = useSocket();
+  const { 
+    dismissActivity: contextDismissActivity,
+    dismissAllActivities: contextDismissAllActivities,
+    fetchActivities: refreshContext 
+  } = useSocket();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -279,6 +307,47 @@ export function ActivityFeedPage() {
     }
   };
 
+  const handleDismiss = async (activityId: string) => {
+    try {
+      const activity = activities.find(a => a.id === activityId);
+      const wasUnread = activity && !activity.isRead;
+      
+      // Remove from local state
+      setActivities(prev => prev.filter(a => a.id !== activityId));
+      setTotal(prev => prev - 1);
+      if (wasUnread) {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+      
+      // Call context dismiss (handles API and Undo toast)
+      await contextDismissActivity(activityId);
+      
+      // Note: If user clicks "Undo" in the toast, the context will refetch, 
+      // but we also need to refetch here or rely on the fact that context fetch
+      // doesn't automatically update this page's local state.
+      // However, undismissActivity in context calls fetchActivities() which is refreshContext.
+      // We might want to listen for changes or just accept that the feed needs a manual refresh or 
+      // we can trigger a refresh if we detect an undismiss.
+    } catch (error) {
+      console.error('Failed to dismiss activity:', error);
+      loadActivities(true);
+    }
+  };
+
+  const handleDismissAll = async () => {
+    if (window.confirm('Are you sure you want to dismiss all activities? This will hide them from your feed.')) {
+      try {
+        await contextDismissAllActivities();
+        setActivities([]);
+        setUnreadCount(0);
+        setTotal(0);
+        setHasMore(false);
+      } catch (error) {
+        console.error('Failed to dismiss all:', error);
+      }
+    }
+  };
+
   const handleMarkAllAsRead = async () => {
     try {
       await markAllActivitiesAsRead();
@@ -322,6 +391,17 @@ export function ActivityFeedPage() {
             >
               <Check className="w-4 h-4 mr-1" />
               Mark all read
+            </Button>
+          )}
+          {activities.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDismissAll}
+              className="text-muted hover:text-error"
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Dismiss all
             </Button>
           )}
           <Button
@@ -440,6 +520,7 @@ export function ActivityFeedPage() {
               key={activity.id}
               activity={activity}
               onMarkAsRead={handleMarkAsRead}
+              onDismiss={handleDismiss}
             />
           ))}
 

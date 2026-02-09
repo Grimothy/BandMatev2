@@ -8,7 +8,9 @@ import {
   FolderOpen,
   FileText,
   Share2,
-  ArrowRight
+  ArrowRight,
+  ArrowRightLeft,
+  X
 } from 'lucide-react';
 import { Activity, ActivityType } from '../../api/activities';
 import { useSocket } from '../../context/SocketContext';
@@ -34,6 +36,8 @@ function getActivityIcon(type: ActivityType) {
       return <FileAudio className={iconClass} />;
     case 'cut_created':
       return <Music className={iconClass} />;
+    case 'cut_moved':
+      return <ArrowRightLeft className={iconClass} />;
     case 'vibe_created':
       return <FolderPlus className={iconClass} />;
     case 'project_created':
@@ -59,6 +63,8 @@ function getActivityDescription(activity: Activity): string {
       return `uploaded ${metadata.fileName || 'a file'}`;
     case 'cut_created':
       return `created cut "${metadata.cutName || 'Untitled'}"`;
+    case 'cut_moved':
+      return `moved cut "${metadata.cutName || 'Untitled'}" to ${metadata.toVibeName || 'another vibe'}`;
     case 'vibe_created':
       return `created vibe "${metadata.vibeName || 'Untitled'}"`;
     case 'project_created':
@@ -79,9 +85,10 @@ function getActivityDescription(activity: Activity): string {
 interface DashboardActivityItemProps {
   activity: Activity;
   onClick: () => void;
+  onDismiss: (e: React.MouseEvent) => void;
 }
 
-function DashboardActivityItem({ activity, onClick }: DashboardActivityItemProps) {
+function DashboardActivityItem({ activity, onClick, onDismiss }: DashboardActivityItemProps) {
   const description = getActivityDescription(activity);
   const icon = getActivityIcon(activity.type);
 
@@ -112,6 +119,23 @@ function DashboardActivityItem({ activity, onClick }: DashboardActivityItemProps
           {formatTimeAgo(activity.createdAt)}
         </p>
       </div>
+
+      {/* Dismiss button */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onDismiss}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onDismiss(e as unknown as React.MouseEvent);
+          }
+        }}
+        className="p-1 rounded hover:bg-surface-light transition-all flex-shrink-0 opacity-0 group-hover:opacity-100"
+        title="Dismiss"
+      >
+        <X className="w-3.5 h-3.5 text-muted hover:text-error" />
+      </div>
     </button>
   );
 }
@@ -134,7 +158,8 @@ export function DashboardActivityCard() {
     activities, 
     unreadActivityCount, 
     isLoadingActivities,
-    markActivityAsRead 
+    markActivityAsRead,
+    dismissActivity
   } = useSocket();
 
   const handleActivityClick = async (activity: Activity) => {
@@ -144,6 +169,11 @@ export function DashboardActivityCard() {
     if (activity.resourceLink) {
       navigate(activity.resourceLink);
     }
+  };
+
+  const handleDismiss = async (e: React.MouseEvent, activityId: string) => {
+    e.stopPropagation();
+    await dismissActivity(activityId);
   };
 
   // Get first 5 activities for dashboard
@@ -192,6 +222,7 @@ export function DashboardActivityCard() {
               key={activity.id}
               activity={activity}
               onClick={() => handleActivityClick(activity)}
+              onDismiss={(e) => handleDismiss(e, activity.id)}
             />
           ))
         )}

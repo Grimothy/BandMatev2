@@ -402,7 +402,7 @@ router.post(
           type: 'INFO',
           title: 'New Audio Uploaded',
           message: `${user.name} uploaded a new audio file "${req.file.originalname}" to ${cut.name}.`,
-          resourceLink: `/projects/${cut.vibe.project.slug}/vibes/${cut.vibe.slug}/cuts/${cut.slug}`,
+          resourceLink: `/cuts/${cutId}?tab=audio`,
         });
       }
 
@@ -417,7 +417,7 @@ router.post(
           vibeName: cut.vibe.name,
           projectName: cut.vibe.project.name,
         },
-        resourceLink: `/projects/${cut.vibe.project.slug}/vibes/${cut.vibe.slug}/cuts/${cut.slug}`,
+        resourceLink: `/cuts/${cutId}?tab=audio`,
       });
 
       res.status(201).json(managedFile);

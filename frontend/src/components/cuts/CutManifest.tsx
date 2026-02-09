@@ -11,11 +11,12 @@ import {
   FileText,
   Share2,
   Loader2,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { Card } from '../ui/Card';
 
 interface CutManifestProps {
-  cutSlug: string;
+  cutId: string;
 }
 
 function formatTimeAgo(dateString: string): string {
@@ -37,6 +38,8 @@ function getActivityIcon(type: ActivityType) {
       return <FileAudio className={iconClass} />;
     case 'cut_created':
       return <Music className={iconClass} />;
+    case 'cut_moved':
+      return <ArrowRightLeft className={iconClass} />;
     case 'vibe_created':
       return <FolderPlus className={iconClass} />;
     case 'project_created':
@@ -62,6 +65,8 @@ function getActivityIconColor(type: ActivityType): string {
     case 'cut_created':
     case 'vibe_created':
       return 'bg-purple-500/10 text-purple-500';
+    case 'cut_moved':
+      return 'bg-amber-500/10 text-amber-500';
     case 'project_created':
       return 'bg-green-500/10 text-green-500';
     case 'member_added':
@@ -83,6 +88,8 @@ function getActivityDescription(activity: Activity): string {
       return `uploaded ${metadata.fileName || 'a file'}`;
     case 'cut_created':
       return `created this cut`;
+    case 'cut_moved':
+      return `moved this cut from ${metadata.fromVibeName || 'another vibe'} to ${metadata.toVibeName || 'this vibe'}`;
     case 'comment_added':
       return `commented on ${metadata.cutName || 'this cut'}`;
     case 'lyrics_updated':
@@ -94,21 +101,23 @@ function getActivityDescription(activity: Activity): string {
   }
 }
 
-export function CutManifest({ cutSlug }: CutManifestProps) {
+export function CutManifest({ cutId }: CutManifestProps) {
   const { activities, isLoadingActivities } = useSocket();
   const [cutActivities, setCutActivities] = useState<Activity[]>([]);
 
   useEffect(() => {
     // Filter activities that are related to this cut
-    // We check if the resourceLink contains the cut slug
+    // We check if the resourceLink contains the cut ID
     const filtered = activities.filter((activity) => {
       if (!activity.resourceLink) return false;
-      // Check if the resource link contains this cut's slug
-      return activity.resourceLink.includes(`/cuts/${cutSlug}`);
+      // Check if the resource link contains this cut's ID
+      // resourceLink format: /cuts/{cutId} or /cuts/{cutId}?tab=...
+      return activity.resourceLink.startsWith(`/cuts/${cutId}`) || 
+             activity.resourceLink.includes(`/cuts/${cutId}?`);
     });
 
     setCutActivities(filtered);
-  }, [activities, cutSlug]);
+  }, [activities, cutId]);
 
   if (isLoadingActivities) {
     return (

@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { deleteFile, uploadCutAudio, getCutAudioFilePath } from '../services/upload';
-import { createCutFolder, deleteCutFolder } from '../services/folders';
+import { createCutFolder, deleteCutFolder, moveCutFolder } from '../services/folders';
 import { generateUniqueSlug } from '../utils/slug';
 import { createActivity } from '../services/activities';
 import { checkVibeAccess, checkCutAccess } from '../services/access';
@@ -218,7 +218,7 @@ router.post('/vibe/:vibeId', async (req: AuthRequest, res: Response) => {
           vibeName: vibe.name,
           projectName: project.name,
         },
-        resourceLink: `/projects/${project.slug}/vibes/${vibe.slug}/cuts/${slug}`,
+        resourceLink: `/cuts/${cut.id}`,
       });
     }
 
@@ -625,8 +625,9 @@ router.post('/:id/comments', async (req: AuthRequest, res: Response) => {
           vibeName: cutWithProject.vibe.name,
           projectName: cutWithProject.vibe.project.name,
           isReply: !!parentId,
+          commentId: comment.id,
         },
-        resourceLink: `/projects/${cutWithProject.vibe.project.slug}/vibes/${cutWithProject.vibe.slug}/cuts/${cutWithProject.slug}`,
+        resourceLink: `/cuts/${cutId}?tab=audio&comment=${comment.id}`,
       });
     }
 
@@ -832,7 +833,7 @@ router.put('/:id/lyrics', async (req: AuthRequest, res: Response) => {
           vibeName: cutWithProject.vibe.name,
           projectName: cutWithProject.vibe.project.name,
         },
-        resourceLink: `/projects/${cutWithProject.vibe.project.slug}/vibes/${cutWithProject.vibe.slug}/cuts/${cutWithProject.slug}`,
+        resourceLink: `/cuts/${cutId}?tab=lyrics`,
       });
     }
 
@@ -890,6 +891,191 @@ router.put('/vibe/:vibeId/reorder', async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Reorder cuts error:', error);
     res.status(500).json({ error: 'Failed to reorder cuts' });
+  }
+});
+
+// Move cut to a different vibe
+router.patch('/:id/move', async (req: AuthRequest, res: Response) => {
+  try {
+    const user = req.user!;
+    const cutId = req.params.id;
+    const { targetVibeId } = req.body;
+
+    if (!targetVibeId) {
+      res.status(400).json({ error: 'Target vibe ID is required' });
+      return;
+    }
+
+    // Get the cut with its current vibe and project info
+    const cut = await prisma.cut.findUnique({
+      where: { id: cutId },
+      include: {
+        vibe: {
+          include: {
+            project: {
+              select: { id: true, slug: true, name: true },
+            },
+          },
+        },
+        managedFiles: true,
+      },
+    });
+
+    if (!cut) {
+      res.status(404).json({ error: 'Cut not found' });
+      return;
+    }
+
+    // Check access to the source cut
+    const hasAccessToSource = await checkCutAccess(user.id, user.role, cutId);
+    if (!hasAccessToSource) {
+      res.status(403).json({ error: 'Access denied to source cut' });
+      return;
+    }
+
+    // Get the target vibe with project info
+    const targetVibe = await prisma.vibe.findUnique({
+      where: { id: targetVibeId },
+      include: {
+        project: {
+          select: { id: true, slug: true },
+        },
+      },
+    });
+
+    if (!targetVibe) {
+      res.status(404).json({ error: 'Target vibe not found' });
+      return;
+    }
+
+    // Check access to the target vibe
+    const hasAccessToTarget = await checkVibeAccess(user.id, user.role, targetVibeId);
+    if (!hasAccessToTarget) {
+      res.status(403).json({ error: 'Access denied to target vibe' });
+      return;
+    }
+
+    // Ensure both vibes are in the same project
+    if (cut.vibe.projectId !== targetVibe.projectId) {
+      res.status(400).json({ error: 'Cannot move cuts between different projects' });
+      return;
+    }
+
+    // Check if already in the target vibe
+    if (cut.vibeId === targetVibeId) {
+      res.status(400).json({ error: 'Cut is already in this vibe' });
+      return;
+    }
+
+    // Check for slug collision in the target vibe
+    const existingCutWithSlug = await prisma.cut.findFirst({
+      where: {
+        vibeId: targetVibeId,
+        slug: cut.slug,
+      },
+    });
+
+    let newSlug = cut.slug;
+    if (existingCutWithSlug) {
+      // Generate a unique slug for the target vibe
+      const existingCuts = await prisma.cut.findMany({
+        where: { vibeId: targetVibeId },
+        select: { slug: true },
+      });
+      const existingSlugs = existingCuts.map(c => c.slug);
+      newSlug = generateUniqueSlug(cut.name, existingSlugs);
+    }
+
+    // Get the max order in the target vibe
+    const maxOrder = await prisma.cut.aggregate({
+      where: { vibeId: targetVibeId },
+      _max: { order: true },
+    });
+    const newOrder = (maxOrder._max.order ?? -1) + 1;
+
+    // Move the physical files if they exist
+    const projectSlug = cut.vibe.project.slug;
+    const sourceVibeSlug = cut.vibe.slug;
+    const targetVibeSlug = targetVibe.slug;
+
+    let pathMapping: { oldPathPrefix: string; newPathPrefix: string } | null = null;
+
+    try {
+      pathMapping = await moveCutFolder(
+        projectSlug,
+        sourceVibeSlug,
+        targetVibeSlug,
+        newSlug !== cut.slug ? cut.slug : cut.slug // Use old slug for source
+      );
+
+      // If slug changed, rename the folder in the target location
+      if (newSlug !== cut.slug) {
+        const fs = await import('fs');
+        const oldPath = `./uploads/${projectSlug}/${targetVibeSlug}/${cut.slug}`;
+        const newPath = `./uploads/${projectSlug}/${targetVibeSlug}/${newSlug}`;
+        await fs.promises.rename(oldPath, newPath);
+        pathMapping.newPathPrefix = `${projectSlug}/${targetVibeSlug}/${newSlug}`;
+      }
+    } catch (e) {
+      console.error('Failed to move cut folder:', e);
+      // Continue even if folder move fails (might not have files yet)
+    }
+
+    // Update the cut in the database
+    const updatedCut = await prisma.cut.update({
+      where: { id: cutId },
+      data: {
+        vibeId: targetVibeId,
+        slug: newSlug,
+        order: newOrder,
+      },
+      include: {
+        vibe: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            project: {
+              select: { id: true, name: true, slug: true },
+            },
+          },
+        },
+        managedFiles: {
+          where: { type: 'CUT' },
+        },
+      },
+    });
+
+    // Update managed file paths if folder was moved
+    if (pathMapping && cut.managedFiles.length > 0) {
+      const fileUpdates = cut.managedFiles.map((file) => {
+        const newPath = file.path.replace(pathMapping!.oldPathPrefix, pathMapping!.newPathPrefix);
+        return prisma.managedFile.update({
+          where: { id: file.id },
+          data: { path: newPath },
+        });
+      });
+      await prisma.$transaction(fileUpdates);
+    }
+
+    // Create activity entry
+    await createActivity({
+      type: 'cut_moved',
+      userId: user.id,
+      projectId: cut.vibe.projectId,
+      metadata: {
+        cutName: cut.name,
+        fromVibeName: cut.vibe.name,
+        toVibeName: targetVibe.name,
+        projectName: cut.vibe.project.name,
+      },
+      resourceLink: `/cuts/${cutId}`,
+    });
+
+    res.json(updatedCut);
+  } catch (error) {
+    console.error('Move cut error:', error);
+    res.status(500).json({ error: 'Failed to move cut' });
   }
 });
 
