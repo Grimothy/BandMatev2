@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { getCut, uploadAudio, deleteAudio, updateAudioLabel, addComment, deleteComment, addReply, updateComment, updateCut, deleteCut } from '../../api/cuts';
 import { uploadCut, uploadStem } from '../../api/files';
 import { useAuth } from '../../hooks/useAuth';
-import { Cut, Comment, CommentMarkerGroup } from '../../types';
+import { Cut, Comment } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -527,8 +527,8 @@ export function CutDetail() {
     searchParams.get('comment')
   );
   
-  // Comment marker state
-  const [activeMarkerTimestamp, setActiveMarkerTimestamp] = useState<number | null>(null);
+  // Comment marker state - for highlighting active markers
+  const [activeMarkerId] = useState<string | null>(null);
   
   // Cut action modals
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -818,10 +818,6 @@ export function CutDetail() {
   };
 
   const handleMarkerClick = (audioFileId: string) => (timestamp: number) => {
-    // Set active marker for highlight animation
-    setActiveMarkerTimestamp(timestamp);
-    setTimeout(() => setActiveMarkerTimestamp(null), 2000);
-    
     // On desktop, scroll sidebar to first comment at this timestamp
     if (window.innerWidth >= 1024) {
       const comments = getCommentsForAudio(audioFileId).filter(c => c.timestamp !== null);
@@ -839,37 +835,61 @@ export function CutDetail() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }, []);
 
-  // Group comments by timestamp for waveform markers
-  const getCommentMarkerGroups = useCallback((audioFileId: string): CommentMarkerGroup[] => {
-    const comments = cut?.comments?.filter(c => c.managedFileId === audioFileId && c.timestamp !== null) || [];
+  // Generate colors for comment threads
+  const generateThreadColors = (comments: Comment[]): Map<string, string> => {
+    const colors = [
+      '#22c55e', // green-500
+      '#3b82f6', // blue-500
+      '#f59e0b', // amber-500
+      '#ec4899', // pink-500
+      '#8b5cf6', // violet-500
+      '#06b6d4', // cyan-500
+      '#f97316', // orange-500
+      '#14b8a6', // teal-500
+      '#a855f7', // purple-500
+      '#ef4444', // red-500
+    ];
     
-    if (comments.length === 0) return [];
+    const threadColors = new Map<string, string>();
+    const topLevelComments = comments.filter(c => !c.parentId);
     
-    // Group by rounded timestamp (nearest second)
-    const groups = new Map<number, typeof comments>();
-    
-    comments.forEach(comment => {
-      const timestamp = Math.round(comment.timestamp!);
-      if (!groups.has(timestamp)) {
-        groups.set(timestamp, []);
-      }
-      groups.get(timestamp)!.push(comment);
+    topLevelComments.forEach((comment, index) => {
+      const color = colors[index % colors.length];
+      // Assign color to this comment and all its replies
+      threadColors.set(comment.id, color);
+      assignReplyColors(comment, color, threadColors);
     });
     
-    // Convert to marker groups with user colors
-    return Array.from(groups.entries())
-      .map(([timestamp, groupComments]) => ({
-        timestamp,
-        count: groupComments.length,
-        comments: groupComments.map(c => ({
-          id: c.id,
-          user: c.user,
-          content: c.content,
-          timestamp: c.timestamp!,
-        })),
-        userColors: groupComments.slice(0, 3).map(c => getColorFromId(c.userId)),
-      }))
-      .sort((a, b) => a.timestamp - b.timestamp);
+    return threadColors;
+  };
+  
+  const assignReplyColors = (comment: Comment, color: string, colorMap: Map<string, string>) => {
+    if (comment.replies) {
+      comment.replies.forEach(reply => {
+        colorMap.set(reply.id, color);
+        assignReplyColors(reply, color, colorMap);
+      });
+    }
+  };
+
+  // Get comment markers with thread colors for waveform
+  const getCommentMarkers = useCallback((audioFileId: string): import('../../types').CommentMarker[] => {
+    const allComments = cut?.comments?.filter(c => c.managedFileId === audioFileId) || [];
+    const commentsWithTimestamps = allComments.filter(c => c.timestamp !== null);
+    
+    if (commentsWithTimestamps.length === 0) return [];
+    
+    // Generate thread colors
+    const threadColors = generateThreadColors(allComments);
+    
+    // Create markers for each comment with timestamp
+    return commentsWithTimestamps.map(comment => ({
+      id: comment.id,
+      timestamp: comment.timestamp!,
+      color: threadColors.get(comment.id) || '#22c55e',
+      user: comment.user,
+      content: comment.content,
+    }));
   }, [cut?.comments]);
 
   const getCommentsForAudio = (audioFileId: string) => {
@@ -1079,7 +1099,7 @@ export function CutDetail() {
               cut.managedFiles?.map((audio, index) => {
                 const audioComments = getCommentsForAudio(audio.id);
                 const isSelected = selectedAudioFileId === audio.id;
-                const markerGroups = getCommentMarkerGroups(audio.id);
+                const commentMarkers = getCommentMarkers(audio.id);
 
                 return (
                   <Card 
@@ -1186,9 +1206,9 @@ export function CutDetail() {
                         ref={setWaveformRef(audio.id)}
                         audioUrl={`/${audio.path}`}
                         onTimeClick={handleTimeClick(audio.id)}
-                        markerGroups={markerGroups}
+                        markers={commentMarkers}
                         onMarkerClick={handleMarkerClick(audio.id)}
-                        activeMarkerTimestamp={activeMarkerTimestamp}
+                        activeMarkerId={activeMarkerId}
                       />
                     </div>
                   </Card>

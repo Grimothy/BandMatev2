@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from 'react';
 import WaveSurfer from 'wavesurfer.js';
-import { CommentMarkerGroup } from '../../types';
+import { CommentMarker } from '../../types';
 
 interface WaveformProps {
   audioUrl: string;
   onTimeClick?: (time: number) => void;
   onReady?: (duration: number) => void;
-  markerGroups?: CommentMarkerGroup[];
+  markers?: CommentMarker[];
   onMarkerClick?: (timestamp: number) => void;
-  activeMarkerTimestamp?: number | null;
+  activeMarkerId?: string | null;
 }
 
 export interface WaveformHandle {
@@ -21,22 +21,8 @@ export interface WaveformHandle {
   getVolume: () => number;
 }
 
-// Get user color for avatar background
-const getColorFromId = (id: string): string => {
-  const colors = [
-    'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 
-    'bg-purple-500', 'bg-pink-500', 'bg-indigo-500',
-    'bg-red-500', 'bg-teal-500'
-  ];
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-};
-
 export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
-  ({ audioUrl, onTimeClick, onReady, markerGroups = [], onMarkerClick, activeMarkerTimestamp }, ref) => {
+  ({ audioUrl, onTimeClick, onReady, markers = [], onMarkerClick, activeMarkerId }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const waveformContainerRef = useRef<HTMLDivElement>(null);
     const wavesurferRef = useRef<WaveSurfer | null>(null);
@@ -48,9 +34,8 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
       return saved ? parseFloat(saved) : 0.5;
     });
     const [isMuted, setIsMuted] = useState(false);
-    const [hoveredMarker, setHoveredMarker] = useState<CommentMarkerGroup | null>(null);
+    const [hoveredMarker, setHoveredMarker] = useState<CommentMarker | null>(null);
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-    const isMobile = window.innerWidth < 768;
 
     useImperativeHandle(ref, () => ({
       seekTo: (time: number) => {
@@ -221,15 +206,14 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
       return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const handleMarkerMouseEnter = useCallback((group: CommentMarkerGroup, e: React.MouseEvent) => {
-      if (isMobile) return;
-      setHoveredMarker(group);
+    const handleMarkerMouseEnter = useCallback((marker: CommentMarker, e: React.MouseEvent) => {
+      setHoveredMarker(marker);
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       setTooltipPosition({
         x: rect.left + rect.width / 2,
         y: rect.top,
       });
-    }, [isMobile]);
+    }, []);
 
     const handleMarkerMouseLeave = useCallback(() => {
       setHoveredMarker(null);
@@ -300,69 +284,51 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
 
         {/* Waveform with Markers */}
         <div className="relative" ref={containerRef}>
-          <div ref={waveformContainerRef} />
-          
-          {/* Timeline Markers */}
-          {duration > 0 && markerGroups.length > 0 && (
-            <div className="absolute inset-0 pointer-events-none">
-              {/* Marker Lines */}
-              {markerGroups.map((group, index) => {
-                const position = (group.timestamp / duration) * 100;
-                const isActive = activeMarkerTimestamp === group.timestamp;
+          {/* Markers Layer - ON TOP */}
+          {duration > 0 && markers.length > 0 && (
+            <div className="absolute inset-0 z-10 pointer-events-none">
+              {markers.map((marker) => {
+                const position = (marker.timestamp / duration) * 100;
+                const isActive = activeMarkerId === marker.id;
                 
                 return (
                   <div
-                    key={`line-${index}`}
-                    className={`absolute top-0 bottom-8 pointer-events-auto cursor-pointer transition-all ${
-                      isActive ? 'w-1 bg-primary z-10' : 'w-0.5 bg-primary/50 hover:w-1 hover:bg-primary'
-                    }`}
-                    style={{ left: `${position}%` }}
-                    onClick={() => handleMarkerClick(group.timestamp)}
-                    onMouseEnter={(e) => handleMarkerMouseEnter(group, e)}
+                    key={marker.id}
+                    className="absolute top-0 pointer-events-auto cursor-pointer group"
+                    style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
+                    onClick={() => handleMarkerClick(marker.timestamp)}
+                    onMouseEnter={(e) => handleMarkerMouseEnter(marker, e)}
                     onMouseLeave={handleMarkerMouseLeave}
-                    aria-label={`${group.count} comments at ${formatTime(group.timestamp)}`}
+                    aria-label={`Comment at ${formatTime(marker.timestamp)}`}
                   >
-                    {/* Pulse animation for active marker */}
-                    {isActive && (
-                      <div className="absolute inset-0 bg-primary animate-pulse" />
-                    )}
+                    {/* Vertical line extending down */}
+                    <div 
+                      className={`w-0.5 h-20 transition-all ${
+                        isActive ? 'w-1' : 'group-hover:w-1'
+                      }`}
+                      style={{ backgroundColor: marker.color }}
+                    />
+                    {/* Diamond/dot at top */}
+                    <div 
+                      className={`absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 transition-transform ${
+                        isActive ? 'scale-125' : 'group-hover:scale-110'
+                      }`}
+                      style={{ backgroundColor: marker.color }}
+                    />
                   </div>
                 );
               })}
-              
-              {/* Count Badges - positioned below waveform */}
-              <div className="absolute left-0 right-0 bottom-0 h-8 pointer-events-none">
-                {markerGroups.map((group, index) => {
-                  const position = (group.timestamp / duration) * 100;
-                  const isActive = activeMarkerTimestamp === group.timestamp;
-                  
-                  return (
-                    <button
-                      key={`badge-${index}`}
-                      className={`absolute top-0 -translate-x-1/2 pointer-events-auto 
-                        flex items-center justify-center rounded-full font-medium text-white
-                        transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
-                        ${isMobile ? 'min-w-[32px] h-8 text-sm' : 'min-w-[24px] h-6 text-xs'}
-                        ${isActive ? 'bg-primary scale-110 ring-2 ring-primary ring-offset-2' : 'bg-primary/80 hover:bg-primary'}`}
-                      style={{ left: `${position}%` }}
-                      onClick={() => handleMarkerClick(group.timestamp)}
-                      onMouseEnter={(e) => handleMarkerMouseEnter(group, e)}
-                      onMouseLeave={handleMarkerMouseLeave}
-                      aria-label={`View ${group.count} comments at ${formatTime(group.timestamp)}`}
-                    >
-                      {group.count > 99 ? '99+' : group.count}
-                    </button>
-                  );
-                })}
-              </div>
             </div>
           )}
+          
+          {/* Waveform */}
+          <div ref={waveformContainerRef} />
         </div>
 
         {/* Desktop Tooltip */}
-        {!isMobile && hoveredMarker && (
+        {hoveredMarker && (
           <div
-            className="fixed z-50 bg-surface border border-border rounded-lg shadow-xl p-3 min-w-[240px] max-w-[320px] animate-fade-in"
+            className="fixed z-50 bg-surface border border-border rounded-lg shadow-xl p-3 min-w-[200px] max-w-[280px] animate-fade-in"
             style={{
               left: tooltipPosition.x,
               top: tooltipPosition.y - 8,
@@ -374,48 +340,28 @@ export const Waveform = forwardRef<WaveformHandle, WaveformProps>(
               <div className="w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-surface" />
             </div>
             
-            {/* Header with user avatars */}
-            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border">
-              <div className="flex -space-x-2">
-                {hoveredMarker.comments.slice(0, 3).map((comment, idx) => (
-                  comment.user.avatarUrl ? (
-                    <img
-                      key={idx}
-                      src={comment.user.avatarUrl}
-                      alt={comment.user.name}
-                      className="w-6 h-6 rounded-full border-2 border-surface object-cover"
-                    />
-                  ) : (
-                    <div
-                      key={idx}
-                      className={`w-6 h-6 rounded-full border-2 border-surface flex items-center justify-center text-[10px] text-white font-medium ${getColorFromId(comment.user.id)}`}
-                    >
-                      {comment.user.name.charAt(0).toUpperCase()}
-                    </div>
-                  )
-                ))}
-              </div>
-              <span className="text-sm text-muted">
-                {hoveredMarker.comments.length > 3 
-                  ? `${hoveredMarker.comments.slice(0, 3).map(c => c.user.name.split(' ')[0]).join(', ')} +${hoveredMarker.comments.length - 3} more`
-                  : hoveredMarker.comments.map(c => c.user.name.split(' ')[0]).join(', ')
-                }
-              </span>
-            </div>
-            
-            {/* Comment previews */}
-            <div className="space-y-2 mb-2">
-              {hoveredMarker.comments.slice(0, 2).map((comment, idx) => (
-                <div key={idx} className="text-sm">
-                  <span className="font-medium text-text">{comment.user.name.split(' ')[0]}:</span>
-                  <span className="text-muted ml-1 line-clamp-2">{comment.content}</span>
-                </div>
-              ))}
-              {hoveredMarker.comments.length > 2 && (
-                <div className="text-xs text-muted italic">
-                  + {hoveredMarker.comments.length - 2} more comments
+            {/* User info */}
+            <div className="flex items-center gap-2 mb-2">
+              {hoveredMarker.user.avatarUrl ? (
+                <img
+                  src={hoveredMarker.user.avatarUrl}
+                  alt={hoveredMarker.user.name}
+                  className="w-6 h-6 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] text-white font-medium"
+                  style={{ backgroundColor: hoveredMarker.color }}
+                >
+                  {hoveredMarker.user.name.charAt(0).toUpperCase()}
                 </div>
               )}
+              <span className="text-sm font-medium text-text">{hoveredMarker.user.name}</span>
+            </div>
+            
+            {/* Comment preview */}
+            <div className="text-sm text-muted line-clamp-2 mb-2">
+              {hoveredMarker.content}
             </div>
             
             {/* Timestamp */}
