@@ -835,26 +835,26 @@ export function CutDetail() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }, []);
 
+  // Generate unique HSL color from string (e.g., comment ID)
+  const generateColorFromId = (id: string): string => {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      const char = id.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    // Use hash to generate hue (0-360), keep saturation and lightness consistent
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 70%, 50%)`;
+  };
+
   // Generate colors for comment threads
   const generateThreadColors = (comments: Comment[]): Map<string, string> => {
-    const colors = [
-      '#22c55e', // green-500
-      '#3b82f6', // blue-500
-      '#f59e0b', // amber-500
-      '#ec4899', // pink-500
-      '#8b5cf6', // violet-500
-      '#06b6d4', // cyan-500
-      '#f97316', // orange-500
-      '#14b8a6', // teal-500
-      '#a855f7', // purple-500
-      '#ef4444', // red-500
-    ];
-    
     const threadColors = new Map<string, string>();
     const topLevelComments = comments.filter(c => !c.parentId);
     
-    topLevelComments.forEach((comment, index) => {
-      const color = colors[index % colors.length];
+    topLevelComments.forEach((comment) => {
+      const color = generateColorFromId(comment.id);
       // Assign color to this comment and all its replies
       threadColors.set(comment.id, color);
       assignReplyColors(comment, color, threadColors);
