@@ -5,6 +5,7 @@ export interface User {
   role: 'ADMIN' | 'MEMBER';
   authProvider?: 'local' | 'google';
   avatarUrl?: string | null;
+  lastLogin?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }

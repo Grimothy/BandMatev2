@@ -76,6 +76,12 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
     // Save refresh token to database
     await saveRefreshToken(user.id, refreshToken);
 
+    // Update last login timestamp
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
+
     // Set cookies
     res.cookie('accessToken', accessToken, {
       ...cookieOptions,
@@ -297,6 +303,12 @@ router.get('/google/callback', async (req: Request, res: Response) => {
         return;
       }
     }
+
+    // Update last login timestamp
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
 
     // Generate our JWT tokens
     const tokenPayload = {

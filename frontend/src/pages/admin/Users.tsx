@@ -244,6 +244,17 @@ export function Users() {
                     )}
                   </div>
                   <p className="text-sm text-muted truncate">{user.email}</p>
+                  <p className="text-xs text-muted mt-0.5">
+                    {user.lastLogin
+                      ? `Last login: ${new Date(user.lastLogin).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}`
+                      : 'Never logged in'}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button

@@ -20,6 +20,7 @@ router.get('/', async (_req: AuthRequest, res: Response) => {
         name: true,
         role: true,
         avatarUrl: true,
+        lastLogin: true,
         createdAt: true,
         updatedAt: true,
       },
