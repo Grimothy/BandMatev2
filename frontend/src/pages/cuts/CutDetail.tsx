@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { getCut, uploadAudio, deleteAudio, updateAudioLabel, addComment, deleteComment, addReply, updateComment, updateCut, deleteCut } from '../../api/cuts';
 import { uploadCut, uploadStem } from '../../api/files';
 import { useAuth } from '../../hooks/useAuth';
-import { Cut, Comment } from '../../types';
+import { Cut, Comment, CommentMarkerGroup } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -527,6 +527,9 @@ export function CutDetail() {
     searchParams.get('comment')
   );
   
+  // Comment marker state
+  const [activeMarkerTimestamp, setActiveMarkerTimestamp] = useState<number | null>(null);
+  
   // Cut action modals
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -814,11 +817,60 @@ export function CutDetail() {
     setSelectedAudioFileId(audioFileId);
   };
 
+  const handleMarkerClick = (audioFileId: string) => (timestamp: number) => {
+    // Set active marker for highlight animation
+    setActiveMarkerTimestamp(timestamp);
+    setTimeout(() => setActiveMarkerTimestamp(null), 2000);
+    
+    // On desktop, scroll sidebar to first comment at this timestamp
+    if (window.innerWidth >= 1024) {
+      const comments = getCommentsForAudio(audioFileId).filter(c => c.timestamp !== null);
+      const firstComment = comments.find(c => Math.round(c.timestamp!) === timestamp);
+      if (firstComment) {
+        // Use existing comment click handler to scroll and highlight
+        handleCommentClick(audioFileId, timestamp);
+      }
+    }
+  };
+
   const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }, []);
+
+  // Group comments by timestamp for waveform markers
+  const getCommentMarkerGroups = useCallback((audioFileId: string): CommentMarkerGroup[] => {
+    const comments = cut?.comments?.filter(c => c.managedFileId === audioFileId && c.timestamp !== null) || [];
+    
+    if (comments.length === 0) return [];
+    
+    // Group by rounded timestamp (nearest second)
+    const groups = new Map<number, typeof comments>();
+    
+    comments.forEach(comment => {
+      const timestamp = Math.round(comment.timestamp!);
+      if (!groups.has(timestamp)) {
+        groups.set(timestamp, []);
+      }
+      groups.get(timestamp)!.push(comment);
+    });
+    
+    // Convert to marker groups with user colors
+    return Array.from(groups.entries())
+      .map(([timestamp, groupComments]) => ({
+        timestamp,
+        count: groupComments.length,
+        comments: groupComments.map(c => ({
+          id: c.id,
+          user: c.user,
+          content: c.content,
+          timestamp: c.timestamp!,
+        })),
+        userColors: groupComments.slice(0, 3).map(c => getColorFromId(c.userId)),
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp);
+  }, [cut?.comments]);
 
   const getCommentsForAudio = (audioFileId: string) => {
     return cut?.comments?.filter(c => c.managedFileId === audioFileId) || [];
@@ -1027,12 +1079,7 @@ export function CutDetail() {
               cut.managedFiles?.map((audio, index) => {
                 const audioComments = getCommentsForAudio(audio.id);
                 const isSelected = selectedAudioFileId === audio.id;
-                const commentMarkers = audioComments
-                  .filter((c) => c.timestamp !== null)
-                  .map((c) => ({
-                    time: c.timestamp as number,
-                    color: '#f59e0b',
-                  }));
+                const markerGroups = getCommentMarkerGroups(audio.id);
 
                 return (
                   <Card 
@@ -1139,7 +1186,9 @@ export function CutDetail() {
                         ref={setWaveformRef(audio.id)}
                         audioUrl={`/${audio.path}`}
                         onTimeClick={handleTimeClick(audio.id)}
-                        markers={commentMarkers}
+                        markerGroups={markerGroups}
+                        onMarkerClick={handleMarkerClick(audio.id)}
+                        activeMarkerTimestamp={activeMarkerTimestamp}
                       />
                     </div>
                   </Card>

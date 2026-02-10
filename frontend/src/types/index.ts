@@ -163,3 +163,18 @@ export interface AudioLyrics {
   audioFileId: string;
   lines: LyricsLine[];
 }
+
+// Comment marker group types for waveform
+export interface CommentMarker {
+  id: string;
+  user: Pick<User, 'id' | 'name' | 'avatarUrl'>;
+  content: string;
+  timestamp: number;
+}
+
+export interface CommentMarkerGroup {
+  timestamp: number;
+  comments: CommentMarker[];
+  count: number;
+  userColors: string[];
+}
