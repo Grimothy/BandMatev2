@@ -23,14 +23,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+          fetch-depth: 0
       
       - name: Determine version
         id: version
         run: |
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "tag" ]; then
-            # Use the pushed tag
+            # Use the pushed tag (strip v/V prefix)
             VERSION=${GITHUB_REF_NAME#v}
+            VERSION=${VERSION#V}
             echo "version=$VERSION" >> $GITHUB_OUTPUT
             echo "source=git_tag" >> $GITHUB_OUTPUT
           elif [ -n "${{ inputs.new_version }}" ]; then
@@ -40,9 +42,9 @@ jobs:
             echo "source=manual" >> $GITHUB_OUTPUT
           else
             # Get latest tag
-            git fetch --tags
             LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
             VERSION=${LATEST_TAG#v}
+            VERSION=${VERSION#V}
             echo "version=$VERSION" >> $GITHUB_OUTPUT
             echo "source=latest_tag" >> $GITHUB_OUTPUT
           fi
@@ -82,6 +84,6 @@ jobs:
           git config --local user.name "GitHub Action"
           git add backend/package.json backend/package-lock.json frontend/package.json frontend/package-lock.json
           git commit -m "chore: sync package.json versions to ${{ steps.version.outputs.version }}"
-          git push
+          git push origin main
       
       # Note: Site rebuild is triggered by release.yml on GitHub releases only

@@ -18,7 +18,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
       
       - name: Install Backend Dependencies
         working-directory: ./backend
@@ -35,55 +34,3 @@ jobs:
       - name: Build Frontend
         working-directory: ./frontend
         run: npm run build
-  
-  version-check:
-    name: Check Version Consistency
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Check if version needs bumping
-        id: check_version
-        run: |
-          # Get the latest git tag
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          LATEST_VERSION=${LATEST_TAG#v}
-          
-          # Get version from backend package.json
-          BACKEND_VERSION=$(cat backend/package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[:space:]')
-          FRONTEND_VERSION=$(cat frontend/package.json | grep '"version"' | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[:space:]')
-          
-          echo "Latest git tag: $LATEST_TAG"
-          echo "Backend package.json: $BACKEND_VERSION"
-          echo "Frontend package.json: $FRONTEND_VERSION"
-          
-          # Check if versions match
-          if [ "$BACKEND_VERSION" != "$FRONTEND_VERSION" ]; then
-            echo "::error::Version mismatch! Backend: $BACKEND_VERSION, Frontend: $FRONTEND_VERSION"
-            exit 1
-          fi
-          
-          # Check if package.json matches latest tag
-          if [ "$BACKEND_VERSION" != "$LATEST_VERSION" ]; then
-            echo "::warning::package.json version ($BACKEND_VERSION) doesn't match latest git tag ($LATEST_VERSION)"
-            echo "needs_update=true" >> $GITHUB_OUTPUT
-          else
-            echo "needs_update=false" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Create version bump reminder
-        if: steps.check_version.outputs.needs_update == 'true'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: 'Version Sync Needed',
-              body: 'The package.json versions do not match the latest git tag. Please run the version sync workflow or update manually.',
-              labels: ['maintenance']
-            })
