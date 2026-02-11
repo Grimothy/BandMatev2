@@ -62,6 +62,8 @@ interface CommentItemProps {
   onDeleteComment: (commentId: string) => void;
   onCommentClick: (audioFileId: string, timestamp: number | null) => void;
   formatTime: (seconds: number) => string;
+  threadColors?: Map<string, string>;
+  threadColor?: string;
   depth: number;
 }
 
@@ -111,6 +113,7 @@ const CommentItem = memo(function CommentItem({
   onCommentClick,
   formatTime,
   depth,
+  threadColor,
 }: CommentItemProps) {
   const audioIndex = cut.managedFiles?.findIndex(a => a.id === comment.managedFileId) ?? -1;
   const audioLabel = comment.managedFile?.name || comment.managedFile?.originalName || 'Unknown';
@@ -127,6 +130,25 @@ const CommentItem = memo(function CommentItem({
     }
   };
 
+  // Get the thread color - use parent's color for replies
+  const getThreadColor = () => {
+    if (threadColor) return threadColor;
+    // For top-level comments without passed color, generate from ID
+    if (!isReply) {
+      let hash = 0;
+      for (let i = 0; i < comment.id.length; i++) {
+        const char = comment.id.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      const hue = Math.abs(hash) % 360;
+      return `hsl(${hue}, 70%, 50%)`;
+    }
+    return undefined;
+  };
+
+  const color = getThreadColor();
+
   return (
     <div id={`comment-${comment.id}`} className={depth > 0 ? 'ml-6 border-l-2 border-border pl-3' : ''}>
       <div
@@ -137,6 +159,7 @@ const CommentItem = memo(function CommentItem({
             ? 'bg-primary/10 ring-1 ring-primary/30'
             : 'bg-surface-light'
         }`}
+        style={color ? { borderLeft: `3px solid ${color}` } : undefined}
       >
         <div className="flex-shrink-0 space-y-1">
           {hasTimestamp ? (
@@ -325,6 +348,7 @@ const CommentItem = memo(function CommentItem({
               onCommentClick={onCommentClick}
               formatTime={formatTime}
               depth={depth + 1}
+              threadColor={color}
             />
           ))}
         </div>
@@ -362,6 +386,7 @@ interface CommentsSectionProps {
   onDeleteComment: (commentId: string) => void;
   onCommentClick: (audioFileId: string, timestamp: number | null) => void;
   formatTime: (seconds: number) => string;
+  threadColors?: Map<string, string>;
 }
 
 const CommentsSection = memo(function CommentsSection({
@@ -392,6 +417,7 @@ const CommentsSection = memo(function CommentsSection({
   onDeleteComment,
   onCommentClick,
   formatTime,
+  threadColors,
 }: CommentsSectionProps) {
   return (
     <div className="space-y-6">
@@ -477,6 +503,7 @@ const CommentsSection = memo(function CommentsSection({
                 onCommentClick={onCommentClick}
                 formatTime={formatTime}
                 depth={0}
+                threadColor={threadColors?.get(comment.id)}
               />
             ))}
           </div>
@@ -892,6 +919,12 @@ export function CutDetail() {
     }));
   }, [cut?.comments]);
 
+  // Get thread colors for all comments (used by CommentsSection)
+  const getAllThreadColors = useCallback((): Map<string, string> => {
+    if (!cut?.comments) return new Map();
+    return generateThreadColors(cut.comments);
+  }, [cut?.comments]);
+
   const getCommentsForAudio = (audioFileId: string) => {
     return cut?.comments
       ?.filter(c => c.managedFileId === audioFileId)
@@ -1250,6 +1283,7 @@ export function CutDetail() {
                 onDeleteComment={handleDeleteComment}
                 onCommentClick={handleCommentClick}
                 formatTime={formatTime}
+                threadColors={getAllThreadColors()}
               />
             </div>
           )}
@@ -1308,6 +1342,7 @@ export function CutDetail() {
                 onDeleteComment={handleDeleteComment}
                 onCommentClick={handleCommentClick}
                 formatTime={formatTime}
+                threadColors={getAllThreadColors()}
               />
             </SheetBody>
           </SheetContent>
