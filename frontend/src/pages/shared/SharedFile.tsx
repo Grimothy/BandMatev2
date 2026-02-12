@@ -124,6 +124,7 @@ export function SharedFile() {
   if (!fileInfo) return null;
 
   const displayName = fileInfo.name || fileInfo.originalName;
+  const artworkImage = fileInfo.vibeImage;
 
   return (
     <div className="min-h-screen bg-background">
@@ -139,89 +140,168 @@ export function SharedFile() {
               />
               BandMate
             </Link>
-            <span className="text-muted text-sm">Shared File</span>
           </div>
+          {/* Download button in header - subtle icon */}
+          <button
+            onClick={handleDownload}
+            className="p-2 text-muted hover:text-primary transition-colors rounded-lg hover:bg-surface-light"
+            title="Download file"
+            aria-label="Download file"
+          >
+            <DownloadIcon className="w-5 h-5" />
+          </button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-surface border border-border rounded-xl overflow-hidden">
-          {/* File Header */}
-          <div className="p-6 border-b border-border">
-            <div className="flex flex-col md:flex-row gap-6">
-              {/* Image/Icon */}
-              <div className="flex-shrink-0 mx-auto md:mx-0">
-                <div className="w-32 h-32 rounded-xl overflow-hidden bg-surface-light flex items-center justify-center">
-                  {fileInfo.vibeImage ? (
+      <main className="max-w-4xl mx-auto">
+        {isAudioFile ? (
+          <>
+            {/* Mobile Layout - Immersive Player */}
+            <div className="md:hidden">
+              <div className="flex flex-col items-center px-6 pt-8 pb-6">
+                {/* Large Album Art */}
+                <div className="w-64 h-64 rounded-2xl overflow-hidden bg-surface-light shadow-2xl mb-8">
+                  {artworkImage ? (
                     <img
-                      src={`/${fileInfo.vibeImage}`}
+                      src={`/${artworkImage}`}
                       alt={fileInfo.vibeName || 'Album art'}
                       className="w-full h-full object-cover"
                     />
-                  ) : isAudioFile ? (
-                    <MusicNoteIcon className="w-16 h-16 text-primary" />
                   ) : (
-                    <FileIcon className="w-16 h-16 text-muted" />
+                    <div className="w-full h-full flex items-center justify-center">
+                      <MusicNoteIcon className="w-24 h-24 text-primary/50" />
+                    </div>
                   )}
                 </div>
+
+                {/* Track Info */}
+                <div className="text-center mb-6">
+                  <h1 className="text-2xl font-bold text-text mb-2 px-4">{displayName}</h1>
+                  {(fileInfo.vibeName || fileInfo.projectName) && (
+                    <p className="text-muted text-lg">
+                      {fileInfo.vibeName}
+                      {fileInfo.vibeName && fileInfo.projectName && ' • '}
+                      {fileInfo.projectName}
+                    </p>
+                  )}
+                </div>
+
+                {/* Audio Player */}
+                <div className="w-full">
+                  <AudioPlayer
+                    audioUrl={audioUrl}
+                    trackName={displayName}
+                    vibeImage={null}
+                    vibeName={fileInfo.vibeName}
+                    projectName={fileInfo.projectName}
+                    projectImage={null}
+                    hideMetadata
+                  />
+                </div>
+
+                {/* File metadata */}
+                <div className="mt-6 flex items-center gap-4 text-sm text-muted">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                    {fileInfo.type === 'CUT' ? 'Audio' : 'Stem'}
+                  </span>
+                  <span>{formatFileSize(fileInfo.fileSize)}</span>
+                  <span>•</span>
+                  <span>{new Date(fileInfo.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop Layout - Centered Immersive */}
+            <div className="hidden md:flex flex-col items-center px-4 py-12">
+              {/* Large Album Art */}
+              <div className="w-80 h-80 lg:w-96 lg:h-96 rounded-2xl overflow-hidden bg-surface-light shadow-2xl mb-10">
+                {artworkImage ? (
+                  <img
+                    src={`/${artworkImage}`}
+                    alt={fileInfo.vibeName || 'Album art'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <MusicNoteIcon className="w-32 h-32 lg:w-40 lg:h-40 text-primary/50" />
+                  </div>
+                )}
               </div>
 
-              {/* File Info */}
-              <div className="flex-1 text-center md:text-left">
-                <h1 className="text-2xl font-bold text-text mb-2">{displayName}</h1>
-                
+              {/* Track Info */}
+              <div className="text-center mb-8 max-w-xl">
+                <h1 className="text-3xl lg:text-4xl font-bold text-text mb-3">{displayName}</h1>
                 {(fileInfo.vibeName || fileInfo.projectName) && (
-                  <p className="text-muted mb-4">
+                  <p className="text-muted text-xl">
                     {fileInfo.vibeName}
-                    {fileInfo.vibeName && fileInfo.projectName && ' \u2022 '}
+                    {fileInfo.vibeName && fileInfo.projectName && ' • '}
                     {fileInfo.projectName}
                   </p>
                 )}
+              </div>
 
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 text-sm">
-                  <span className={`inline-flex items-center px-2 py-1 rounded font-medium ${
-                    fileInfo.type === 'CUT'
-                      ? 'bg-primary/20 text-primary'
-                      : 'bg-blue-500/20 text-blue-400'
-                  }`}>
-                    {fileInfo.type === 'CUT' ? 'Audio' : 'Stem'}
-                  </span>
-                  <span className="text-muted">{formatFileSize(fileInfo.fileSize)}</span>
-                  <span className="text-muted">
-                    Shared {new Date(fileInfo.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
+              {/* Audio Player - wider on desktop */}
+              <div className="w-full max-w-2xl">
+                <AudioPlayer
+                  audioUrl={audioUrl}
+                  trackName={displayName}
+                  vibeImage={null}
+                  vibeName={fileInfo.vibeName}
+                  projectName={fileInfo.projectName}
+                  projectImage={null}
+                  hideMetadata
+                />
+              </div>
 
-                {/* Download Button */}
-                <button
-                  onClick={handleDownload}
-                  className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium"
-                >
-                  <DownloadIcon />
-                  Download File
-                </button>
+              {/* File metadata */}
+              <div className="mt-8 flex items-center gap-4 text-sm text-muted">
+                <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                  {fileInfo.type === 'CUT' ? 'Audio' : 'Stem'}
+                </span>
+                <span>{formatFileSize(fileInfo.fileSize)}</span>
+                <span>•</span>
+                <span>{new Date(fileInfo.createdAt).toLocaleDateString()}</span>
               </div>
             </div>
-          </div>
-
-          {/* Audio Player (for audio files) */}
-          {isAudioFile && (
-            <div className="p-6">
-              <AudioPlayer
-                audioUrl={audioUrl}
-                trackName={displayName}
-                vibeImage={fileInfo.vibeImage}
-                vibeName={fileInfo.vibeName}
-                projectName={fileInfo.projectName}
-                projectImage={fileInfo.projectImage}
-              />
+          </>
+        ) : (
+          // Non-audio files - simple centered download view
+          <div className="flex flex-col items-center px-4 py-12">
+            {/* File Icon */}
+            <div className="w-48 h-48 rounded-2xl bg-surface-light flex items-center justify-center mb-8">
+              <FileIcon className="w-24 h-24 text-muted" />
             </div>
-          )}
-        </div>
+
+            {/* File Info */}
+            <div className="text-center max-w-xl mb-6">
+              <h1 className="text-3xl font-bold text-text mb-3">{displayName}</h1>
+
+              <div className="flex items-center justify-center gap-3 text-sm">
+                <span className="inline-flex items-center px-3 py-1 rounded-full font-medium bg-blue-500/20 text-blue-400">
+                  File
+                </span>
+                <span className="text-muted">{formatFileSize(fileInfo.fileSize)}</span>
+                <span className="text-muted">•</span>
+                <span className="text-muted">
+                  {new Date(fileInfo.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+
+            {/* Download Button */}
+            <button
+              onClick={handleDownload}
+              className="inline-flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-xl hover:bg-primary-hover transition-colors font-medium text-lg"
+            >
+              <DownloadIcon className="w-6 h-6" />
+              Download File
+            </button>
+          </div>
+        )}
 
         {/* Footer info */}
-        <div className="mt-6 text-center text-sm text-muted">
+        <div className="mt-6 text-center text-sm text-muted px-4 pb-8">
           <p>
             This file was shared via{' '}
             <Link to="/" className="text-primary hover:underline">

@@ -10,6 +10,8 @@ interface AudioPlayerProps {
   /** Fallback image if vibeImage is not available */
   projectImage?: string | null;
   onClose?: () => void;
+  /** Hide track info/metadata - useful when displayed separately above the player */
+  hideMetadata?: boolean;
   /** Optional callback for previous track - if provided, shows prev button in OS media controls */
   onPreviousTrack?: () => void;
   /** Optional callback for next track - if provided, shows next button in OS media controls */
@@ -86,6 +88,7 @@ export function AudioPlayer({
   projectName,
   projectImage,
   onClose,
+  hideMetadata = false,
   onPreviousTrack,
   onNextTrack,
 }: Readonly<AudioPlayerProps>) {
@@ -374,7 +377,7 @@ export function AudioPlayer({
   }
 
   return (
-    <div className="bg-[hsl(var(--player-bg))] border border-border rounded-xl p-4 shadow-lg">
+    <div className="bg-[hsl(var(--player-bg))] border border-border rounded-xl p-3 md:p-4 shadow-lg">
       {/* Hidden audio element */}
       <audio ref={audioRef} src={audioUrl} preload="metadata">
         {/* No captions provided for these audio files; include an empty track element
@@ -383,40 +386,44 @@ export function AudioPlayer({
       </audio>
 
       {/* Main layout - responsive */}
-      <div className="flex flex-col md:flex-row gap-4">
-        {/* Album art / Vibe image */}
-        <div className="flex-shrink-0 mx-auto md:mx-0">
-          <div className="w-24 h-24 md:w-20 md:h-20 rounded-lg overflow-hidden bg-surface-light flex items-center justify-center">
-            {artworkImage ? (
-              <img
-                src={`/${artworkImage}`}
-                alt={vibeName || projectName || 'Album art'}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <MusicNoteIcon className="w-10 h-10 text-muted" />
-            )}
+      <div className={`flex gap-3 md:gap-4 ${hideMetadata ? '' : 'flex-col md:flex-row'}`}>
+        {/* Album art / Vibe image - hidden when hideMetadata is true */}
+        {!hideMetadata && (
+          <div className="flex-shrink-0 mx-auto md:mx-0">
+            <div className="w-20 h-20 md:w-20 md:h-20 rounded-lg overflow-hidden bg-surface-light flex items-center justify-center">
+              {artworkImage ? (
+                <img
+                  src={`/${artworkImage}`}
+                  alt={vibeName || projectName || 'Album art'}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <MusicNoteIcon className="w-10 h-10 text-muted" />
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Content */}
         <div className="flex-1 min-w-0 flex flex-col justify-center">
-          {/* Track info */}
-          <div className="text-center md:text-left mb-3">
-            <h3 className="font-semibold text-[hsl(var(--player-text))] truncate text-lg">
-              {trackName}
-            </h3>
-            {(vibeName || projectName) && (
-              <p className="text-sm text-[hsl(var(--player-muted))] truncate">
-                {vibeName}
-                {vibeName && projectName && ' \u2022 '}
-                {projectName}
-              </p>
-            )}
-          </div>
+          {/* Track info - hidden when hideMetadata is true */}
+          {!hideMetadata && (
+            <div className="text-center md:text-left mb-2 md:mb-3">
+              <h3 className="font-semibold text-[hsl(var(--player-text))] truncate text-lg">
+                {trackName}
+              </h3>
+              {(vibeName || projectName) && (
+                <p className="text-sm text-[hsl(var(--player-muted))] truncate">
+                  {vibeName}
+                  {vibeName && projectName && ' \u2022 '}
+                  {projectName}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Progress bar */}
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-3 mb-2 md:mb-3">
             <span className="text-xs text-[hsl(var(--player-muted))] w-10 text-right tabular-nums">
               {formatTime(currentTime)}
             </span>
