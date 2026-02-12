@@ -12,9 +12,12 @@ const ExternalLinkIcon = ({ className = "w-4 h-4" }: { className?: string }) => 
   </svg>
 );
 
-const HeartIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
-    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+// Ko-Fi logo SVG - official style
+const KoFiIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="10" fill="#FF5E5B" />
+    <path d="M9.5 7C9.5 7 9 10.5 7 11.5C5 12.5 5.5 15 7.5 15.5C9.5 16 13 13.5 13.5 11C14 8.5 12 6 9.5 7Z" fill="white" />
+    <path d="M16 6.5C16 6.5 15 9.5 14.5 10.5C14 11.5 16 11.5 17 10.5C18 9.5 17 6.5 16 6.5Z" fill="white" />
   </svg>
 );
 
@@ -61,7 +64,7 @@ export function Layout() {
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-text hover:text-primary transition-colors"
               >
-                <HeartIcon className="text-red-500" />
+                <KoFiIcon />
                 Support on Ko-Fi
               </a>
             </div>
