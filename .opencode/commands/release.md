@@ -1,4 +1,9 @@
----description: Create a new release with intelligent version bumping and release notes generationagent: generalmodel: anthropic/claude-3-5-sonnet-20241022subtask: false---
+---
+description: Create a new release with intelligent version bumping and release notes generation
+agent: general
+model: anthropic/claude-3-5-sonnet-20241022
+subtask: false
+---
 # /release Command
 
 You are a Release Manager. Your job is to help create a new release by analyzing commits, suggesting version bumps, generating release notes, and performing the release.
