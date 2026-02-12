@@ -42,14 +42,14 @@ export function Layout() {
         </main>
 
         {/* Footer */}
-        <footer className="border-t border-border bg-surface/50 px-4 py-3">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-muted">
+        <footer className="border-t border-border bg-surface px-4 py-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-sm">
             <div className="flex items-center gap-4">
               <a
                 href="https://grimothy.github.io/BandMate_site/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                className="flex items-center gap-1.5 text-text hover:text-primary transition-colors"
               >
                 <ExternalLinkIcon />
                 Documentation
@@ -59,13 +59,13 @@ export function Layout() {
                 href="https://ko-fi.com/mrgrimothy"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                className="flex items-center gap-1.5 text-text hover:text-primary transition-colors"
               >
                 <HeartIcon className="text-red-500" />
                 Support on Ko-Fi
               </a>
             </div>
-            <div className="text-xs">
+            <div className="text-xs text-muted">
               BandMate - Collaborative Music Production
             </div>
           </div>
